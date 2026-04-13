@@ -1,12 +1,10 @@
-// netlify/functions/refresh.js — Venn
-// Tries Ollama first if aiMode=ollama, falls back to OpenRouter
-
 exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
     'Content-Type': 'application/json',
   }
+
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' }
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) }
 
@@ -14,7 +12,8 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body) }
   catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid JSON' }) } }
 
-  const { topic, query, aiMode = 'openrouter', ollamaModel = 'gemma3', ollamaUrl = 'http://localhost:11434' } = body
+  const { topic, query, topicType = 'auto', aiMode = 'openrouter', ollamaModel = 'gemma3', ollamaUrl = 'http://localhost:11434' } = body
+
   if (!topic) return { statusCode: 400, headers, body: JSON.stringify({ error: 'topic is required' }) }
 
   const TAVILY_KEY = process.env.TAVILY_API_KEY
@@ -34,7 +33,7 @@ exports.handler = async (event) => {
         api_key: TAVILY_KEY,
         query: searchQuery,
         search_depth: 'basic',
-        max_results: 6,
+        max_results: 8,
         include_answer: true,
         include_raw_content: false,
         topic: 'news',
@@ -43,7 +42,7 @@ exports.handler = async (event) => {
     if (!tavilyRes.ok) throw new Error(`Tavily ${tavilyRes.status}`)
     const data = await tavilyRes.json()
     tavilyAnswer = data.answer || ''
-    searchResults = (data.results || []).slice(0, 6).map((r) => ({
+    searchResults = (data.results || []).slice(0, 8).map((r) => ({
       title: r.title, url: r.url, snippet: r.content || '',
     }))
   } catch (err) {
@@ -51,17 +50,79 @@ exports.handler = async (event) => {
   }
 
   if (searchResults.length === 0) {
-    return { statusCode: 200, headers, body: JSON.stringify({ summary: 'No recent results found.', sources: [], fetchedAt: new Date().toISOString() }) }
+    return { statusCode: 200, headers, body: JSON.stringify({ type: 'error', error: 'No results found', sources: [], fetchedAt: new Date().toISOString() }) }
   }
 
-  // ── Step 2: Prompt ─────────────────────────────────────────────────────────
+  // ── Step 2: Build Classification + Extraction Prompt ───────────────────────
   const resultsText = searchResults.map((r, i) => `[${i + 1}] ${r.title}\n${r.snippet}\nURL: ${r.url}`).join('\n\n')
-  const answerContext = tavilyAnswer ? `Quick answer: ${tavilyAnswer}\n\n` : ''
-  const prompt = `You are a personal intelligence briefing assistant for Venn. Write a concise status update for: "${topic}"
-Rules: 2-4 sentences max. Direct, no fluff. No "based on search results" phrases. Most important recent development only.
-${answerContext}Search results:\n${resultsText}\n\nStatus update:`
 
-  // ── Step 3: Try Ollama ─────────────────────────────────────────────────────
+  const typeHint = topicType !== 'auto' ? `User specified type: ${topicType}. Use this type.` : ''
+
+  const prompt = `You are Venn, an intelligent data extraction engine. Your task is to analyze search results and extract structured data.
+
+${typeHint}
+
+Analyze the topic: "${topic}"
+
+${tavilyAnswer ? `Quick answer from search: ${tavilyAnswer}\n` : ''}
+Search results:
+${resultsText}
+
+CLASSIFICATION RULES:
+- "cinema" → Movies, TV shows, streaming series, actors, directors
+- "briefing" → Everything else (news, events, topics, general information)
+
+OUTPUT SCHEMA (JSON only, no other text):
+{
+  "type": "cinema" | "briefing",
+  "confidence": 0.0-1.0,
+  "data": {
+    // For "cinema" type:
+    "title": "string - primary title",
+    "stats": {
+      "ww_gross": "string - worldwide box office if available",
+      "budget": "string - production budget if available",
+      "rating": "string - IMDb/rotten tomatoes rating",
+      "release_date": "string - release date YYYY-MM-DD",
+      "runtime": "string - runtime in minutes",
+      "director": "string - director name",
+      "genre": "string - primary genre"
+    },
+    "highlights": ["array of 2-3 key highlights"],
+    "milestones": ["array of achievements/milestones"],
+    "cast": ["array of main cast names"],
+    "news": [{"text": "string", "sentiment": "positive|neutral|negative"}],
+    
+    // For "briefing" type:
+    "title": "string - topic title",
+    "summary": "string - 2-3 sentence summary",
+    "key_points": ["array of 3-5 bullet points"],
+    "sentiment": "positive|neutral|negative|mixed",
+    "sources": [{"title": "string", "url": "string", "snippet": "string"}]
+  }
+}
+
+Respond ONLY with valid JSON. No markdown, no explanation.`
+
+  // ── Step 3: AI Extraction ─────────────────────────────────────────────────
+  let extractedData = null
+  let parseError = null
+
+  const sendResponse = (responseData) => ({
+    statusCode: 200,
+    headers,
+    body: JSON.stringify({
+      type: responseData.type || 'briefing',
+      confidence: responseData.confidence || 0.5,
+      data: responseData.data || responseData,
+      sources: searchResults.slice(0, 4),
+      fetchedAt: new Date().toISOString(),
+      usedProvider: aiMode === 'ollama' ? `ollama:${ollamaModel}` : 'openrouter:gemma-4',
+      parseError: parseError,
+    }),
+  })
+
+  // Try Ollama
   if (aiMode === 'ollama') {
     try {
       const ollamaRes = await fetch(`${ollamaUrl}/api/generate`, {
@@ -75,20 +136,23 @@ ${answerContext}Search results:\n${resultsText}\n\nStatus update:`
         throw new Error(`Ollama ${ollamaRes.status}: ${errText}`)
       }
       const ollamaData = await ollamaRes.json()
-      const summary = ollamaData.response?.trim() || 'No response from Ollama.'
-      return {
-        statusCode: 200, headers,
-        body: JSON.stringify({ summary, sources: searchResults.slice(0, 4), fetchedAt: new Date().toISOString(), usedProvider: `ollama:${ollamaModel}` }),
+      const rawResponse = ollamaData.response?.trim() || ''
+      try {
+        extractedData = JSON.parse(rawResponse)
+      } catch (e) {
+        parseError = `JSON parse failed: ${e.message}`
+        const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
+        if (jsonMatch) {
+          try { extractedData = JSON.parse(jsonMatch[0]); parseError = null } catch {}
+        }
       }
+      return sendResponse(extractedData || { type: 'briefing', data: { title: topic, summary: rawResponse.slice(0, 500) } })
     } catch (err) {
-      return {
-        statusCode: 502, headers,
-        body: JSON.stringify({ error: `Ollama failed: ${err.message}. Check if Ollama is running at ${ollamaUrl}` }),
-      }
+      return { statusCode: 502, headers, body: JSON.stringify({ error: `Ollama failed: ${err.message}` }) }
     }
   }
 
-  // ── Step 4: OpenRouter (only if aiMode is openrouter) ──────────────────────
+  // OpenRouter
   if (!OPENROUTER_KEY) {
     return { statusCode: 500, headers, body: JSON.stringify({ error: 'OPENROUTER_API_KEY not set.' }) }
   }
@@ -103,10 +167,10 @@ ${answerContext}Search results:\n${resultsText}\n\nStatus update:`
         'X-Title': 'Venn',
       },
       body: JSON.stringify({
-        // model: 'google/gemma-4-26b-a4b-it',
         model: 'google/gemma-4-26b-a4b-it',
-        max_tokens: 256,
-        temperature: 0.3,
+        max_tokens: 1024,
+        temperature: 0.2,
+        response_format: { type: 'json_object' },
         messages: [{ role: 'user', content: prompt }],
       }),
     })
@@ -115,11 +179,35 @@ ${answerContext}Search results:\n${resultsText}\n\nStatus update:`
       throw new Error(`OpenRouter ${orRes.status}: ${errText}`)
     }
     const orData = await orRes.json()
-    const summary = orData.choices?.[0]?.message?.content?.trim() || 'Could not generate summary.'
-    return {
-      statusCode: 200, headers,
-      body: JSON.stringify({ summary, sources: searchResults.slice(0, 4), fetchedAt: new Date().toISOString(), usedProvider: 'openrouter:gemma-3-27b' }),
+    const rawResponse = orData.choices?.[0]?.message?.content?.trim() || ''
+
+    try {
+      extractedData = JSON.parse(rawResponse)
+    } catch (e) {
+      parseError = `JSON parse failed: ${e.message}`
+      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
+      if (jsonMatch) {
+        try { extractedData = JSON.parse(jsonMatch[0]); parseError = null } catch {}
+      }
     }
+
+    if (!extractedData) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          type: 'briefing',
+          confidence: 0.1,
+          data: { title: topic, summary: 'Failed to parse AI response.', key_points: [parseError || 'Unknown parse error'] },
+          sources: searchResults.slice(0, 4),
+          fetchedAt: new Date().toISOString(),
+          usedProvider: 'openrouter:gemma-4',
+          parseError,
+        }),
+      }
+    }
+
+    return sendResponse(extractedData)
   } catch (err) {
     return { statusCode: 502, headers, body: JSON.stringify({ error: `AI failed: ${err.message}` }) }
   }

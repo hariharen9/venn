@@ -3,14 +3,16 @@ import { useState } from 'react'
 export default function AddTopicForm({ onAdd, onClose }) {
   const [topic, setTopic] = useState('')
   const [query, setQuery] = useState('')
+  const [topicType, setTopicType] = useState('auto')
   const [showQuery, setShowQuery] = useState(false)
 
   const handleSubmit = (e) => {
     e.preventDefault()
     if (!topic.trim()) return
-    onAdd(topic.trim(), query.trim())
+    onAdd(topic.trim(), query.trim(), topicType)
     setTopic('')
     setQuery('')
+    setTopicType('auto')
     onClose()
   }
 
@@ -20,7 +22,7 @@ export default function AddTopicForm({ onAdd, onClose }) {
 
   return (
     <div
-      className="border border-accent bg-surface p-4 animate-slide-up w-full max-w-md mx-auto"
+      className="border border-accent bg-surface p-4 animate-slide-up w-full max-w-md mx-auto rounded"
       style={{ fontFamily: 'var(--font-mono)' }}
       onKeyDown={handleKey}
     >
@@ -32,8 +34,9 @@ export default function AddTopicForm({ onAdd, onClose }) {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Topic Name */}
         <div>
-          <label className="text-dim text-xs block mb-2">topic name *</label>
+          <label className="text-dim text-sm block mb-2">topic name *</label>
           <div className="flex items-center border border-muted focus-within:border-accent transition-colors rounded">
             <span className="text-accent text-sm px-3 py-3">›</span>
             <input
@@ -41,13 +44,47 @@ export default function AddTopicForm({ onAdd, onClose }) {
               type="text"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
-              placeholder="e.g. Oppenheimer box office"
+              placeholder="e.g. Dune Part Two, React, NVIDIA"
               className="flex-1 bg-transparent text-text text-base py-3 pr-3 outline-none placeholder:text-muted"
               style={{ fontFamily: 'var(--font-mono)' }}
             />
           </div>
         </div>
 
+        {/* Type Selector */}
+        <div>
+          <label className="text-dim text-sm block mb-2">topic type</label>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { value: 'auto', label: 'Auto-detect' },
+              { value: 'cinema', label: '🎬 Cinema' },
+              { value: 'briefing', label: '📡 Briefing' },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setTopicType(option.value)}
+                className="text-sm px-3 py-2 border transition-colors rounded"
+                style={{
+                  borderColor: topicType === option.value ? '#e8f429' : '#2a2a2a',
+                  color: topicType === option.value ? '#e8f429' : '#666',
+                  background: topicType === option.value ? 'rgba(232,244,41,0.05)' : 'transparent',
+                }}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-dim mt-2">
+            {topicType === 'auto' 
+              ? 'AI will detect the topic type automatically' 
+              : topicType === 'cinema' 
+                ? 'Force cinema/entertainment widget' 
+                : 'Force news/briefing widget'}
+          </p>
+        </div>
+
+        {/* Custom Query Toggle */}
         <div>
           <button
             type="button"
@@ -68,7 +105,7 @@ export default function AddTopicForm({ onAdd, onClose }) {
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
-                  placeholder='e.g. "Oppenheimer 2024 box office total worldwide"'
+                  placeholder='e.g. "Dune Part Two box office 2024"'
                   className="flex-1 bg-transparent text-text text-base py-3 pr-3 outline-none placeholder:text-muted"
                   style={{ fontFamily: 'var(--font-mono)' }}
                 />
@@ -80,6 +117,7 @@ export default function AddTopicForm({ onAdd, onClose }) {
           )}
         </div>
 
+        {/* Actions */}
         <div className="flex items-center gap-3 pt-2">
           <button
             type="submit"

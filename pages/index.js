@@ -72,6 +72,7 @@ export default function Dashboard() {
           body: JSON.stringify({
             topic: topic.topic,
             query: topic.query,
+            topicType: topic.topicType || 'auto',
             aiMode: settings.aiMode,
             ollamaModel: settings.ollamaModel,
             ollamaUrl: settings.ollamaUrl,
@@ -124,8 +125,13 @@ export default function Dashboard() {
     setSyncingAll(false)
   }
 
-  const handleAddTopic = (topic, query) => {
-    addTopic(topic, query)
+  const handleAddTopic = async (topic, query, topicType) => {
+    const newTopic = addTopic(topic, query, topicType)
+    // Auto-sync newly added topic
+    setTimeout(() => {
+      const topicObj = { id: newTopic, topic, query, topicType }
+      fetchTopic(topicObj, true)
+    }, 100)
   }
 
   const handleLogout = async () => {
@@ -283,6 +289,7 @@ export default function Dashboard() {
                     onSync={fetchTopic}
                     onRemove={removeTopic}
                     isLoading={loadingIds.has(topic.id)}
+                    settings={settings}
                   />
                 ))}
               </div>

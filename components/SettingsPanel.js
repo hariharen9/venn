@@ -177,6 +177,93 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
           </div>
         )}
 
+        {/* Widget Settings */}
+        <div className="border-t border-border pt-4 space-y-4">
+          <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>WIDGET_SETTINGS</p>
+          
+          {/* Default Topic Type */}
+          <div>
+            <p className="text-dim text-xs mb-2">default topic type</p>
+            <div className="flex flex-wrap gap-2">
+              {[
+                { value: 'auto', label: 'Auto' },
+                { value: 'cinema', label: 'Cinema' },
+                { value: 'briefing', label: 'Briefing' },
+              ].map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => onUpdate({ defaultTopicType: opt.value })}
+                  className="text-xs px-3 py-1.5 border rounded transition-colors"
+                  style={{
+                    borderColor: settings.defaultTopicType === opt.value ? '#e8f429' : '#2a2a2a',
+                    color: settings.defaultTopicType === opt.value ? '#e8f429' : '#666',
+                    background: settings.defaultTopicType === opt.value ? 'rgba(232,244,41,0.05)' : 'transparent',
+                  }}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Toggles */}
+          <div className="space-y-3">
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-dim text-xs">show type badge on cards</span>
+              <input
+                type="checkbox"
+                checked={settings.showTypeBadge}
+                onChange={(e) => onUpdate({ showTypeBadge: e.target.checked })}
+                className="accent-accent"
+              />
+            </label>
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-dim text-xs">show confidence score</span>
+              <input
+                type="checkbox"
+                checked={settings.showConfidence}
+                onChange={(e) => onUpdate({ showConfidence: e.target.checked })}
+                className="accent-accent"
+              />
+            </label>
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-dim text-xs">show raw JSON (debug)</span>
+              <input
+                type="checkbox"
+                checked={settings.showRawJson}
+                onChange={(e) => onUpdate({ showRawJson: e.target.checked })}
+                className="accent-accent"
+              />
+            </label>
+          </div>
+        </div>
+
+        {/* Chat Settings */}
+        <div className="border-t border-border pt-4 space-y-4">
+          <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>CHAT_SETTINGS</p>
+          
+          <div className="space-y-3">
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-dim text-xs">enable chat on widgets</span>
+              <input
+                type="checkbox"
+                checked={settings.enableChat}
+                onChange={(e) => onUpdate({ enableChat: e.target.checked })}
+                className="accent-accent"
+              />
+            </label>
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-dim text-xs">clear chat history on sync</span>
+              <input
+                type="checkbox"
+                checked={settings.clearChatOnSync}
+                onChange={(e) => onUpdate({ clearChatOnSync: e.target.checked })}
+                className="accent-accent"
+              />
+            </label>
+          </div>
+        </div>
+
       </div>
     </div>
   )
