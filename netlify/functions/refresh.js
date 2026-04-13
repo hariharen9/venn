@@ -10,7 +10,7 @@ exports.handler = async (event) => {
 
   let body
   try { body = JSON.parse(event.body) }
-  catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid JSON' }) } }
+  catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid JSON' }) }
 
   const { topic, query, topicType = 'auto', aiMode = 'openrouter', ollamaModel = 'gemma3', ollamaUrl = 'http://localhost:11434' } = body
 
@@ -104,11 +104,10 @@ OUTPUT SCHEMA (JSON only, no other text):
 
 Respond ONLY with valid JSON. No markdown, no explanation.`
 
-  // ── Step 3: AI Extraction ─────────────────────────────────────────────────
   let extractedData = null
   let parseError = null
 
-  const sendResponse = (responseData) => ({
+  const sendResponse = (responseData, provider) => ({
     statusCode: 200,
     headers,
     body: JSON.stringify({
@@ -117,44 +116,46 @@ Respond ONLY with valid JSON. No markdown, no explanation.`
       data: responseData.data || responseData,
       sources: searchResults.slice(0, 4),
       fetchedAt: new Date().toISOString(),
-      usedProvider: aiMode === 'ollama' ? `ollama:${ollamaModel}` : 'openrouter:gemma-4',
+      usedProvider: provider,
       parseError: parseError,
     }),
   })
 
-  // Try Ollama
-  if (aiMode === 'ollama') {
+  // Always try Ollama first, then fall back to OpenRouter
+  if (aiMode === 'ollama' || aiMode === 'auto') {
     try {
       const ollamaRes = await fetch(`${ollamaUrl}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: ollamaModel, prompt, stream: false }),
+        body: JSON.stringify({ model: ollamaModel, prompt, stream: false, format: 'json' }),
         signal: AbortSignal.timeout(30000),
       })
-      if (!ollamaRes.ok) {
-        const errText = await ollamaRes.text()
-        throw new Error(`Ollama ${ollamaRes.status}: ${errText}`)
-      }
-      const ollamaData = await ollamaRes.json()
-      const rawResponse = ollamaData.response?.trim() || ''
-      try {
-        extractedData = JSON.parse(rawResponse)
-      } catch (e) {
-        parseError = `JSON parse failed: ${e.message}`
-        const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          try { extractedData = JSON.parse(jsonMatch[0]); parseError = null } catch {}
+
+      if (ollamaRes.ok) {
+        const ollamaData = await ollamaRes.json()
+        const rawResponse = ollamaData.response?.trim() || ''
+        try {
+          extractedData = JSON.parse(rawResponse)
+        } catch (e) {
+          parseError = `JSON parse failed: ${e.message}`
+          const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            try { extractedData = JSON.parse(jsonMatch[0]); parseError = null } catch {}
+          }
+        }
+
+        if (extractedData) {
+          return sendResponse(extractedData, `ollama:${ollamaModel}`)
         }
       }
-      return sendResponse(extractedData || { type: 'briefing', data: { title: topic, summary: rawResponse.slice(0, 500) } })
-    } catch (err) {
-      return { statusCode: 502, headers, body: JSON.stringify({ error: `Ollama failed: ${err.message}` }) }
+    } catch (ollamaErr) {
+      console.warn('Ollama failed, falling back to OpenRouter')
     }
   }
 
-  // OpenRouter
+  // OpenRouter fallback
   if (!OPENROUTER_KEY) {
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'OPENROUTER_API_KEY not set.' }) }
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'No AI available. Ollama offline and OpenRouter not configured.' }) }
   }
 
   try {
@@ -207,7 +208,7 @@ Respond ONLY with valid JSON. No markdown, no explanation.`
       }
     }
 
-    return sendResponse(extractedData)
+    return sendResponse(extractedData, 'openrouter:gemma-4')
   } catch (err) {
     return { statusCode: 502, headers, body: JSON.stringify({ error: `AI failed: ${err.message}` }) }
   }

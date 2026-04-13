@@ -7,6 +7,7 @@ import TopicCard from '../components/TopicCard'
 import AddTopicForm from '../components/AddTopicForm'
 import SettingsPanel from '../components/SettingsPanel'
 import ConfirmDialog from '../components/ConfirmDialog'
+import ToastContainer, { showToast } from '../components/Toast'
 
 const API_ENDPOINT = '/api/refresh'
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000
@@ -14,11 +15,13 @@ const CACHE_TTL_MS = 4 * 60 * 60 * 1000
 export default function Dashboard() {
   const router = useRouter()
   const { topics, addTopic, removeTopic, setCacheEntry, getCacheEntry } = useTopics()
-  const { settings, updateSettings } = useSettings()
+  const { settings, updateSettings, checkOllamaAndAutoSelect, getActiveModel } = useSettings()
   const [loadingIds, setLoadingIds] = useState(new Set())
   const [showAdd, setShowAdd] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [syncingAll, setSyncingAll] = useState(false)
+  const [toastShown, setToastShown] = useState(false)
+  const [activeProvider, setActiveProvider] = useState({ provider: 'openrouter', model: 'gemma-4-26b-a4b-it' })
 
   useEffect(() => {
     const session = localStorage.getItem('venn_session')
@@ -36,6 +39,26 @@ export default function Dashboard() {
       router.push('/login')
     }
   }, [router])
+
+  // Check Ollama and show toast on mount
+  useEffect(() => {
+    if (toastShown) return
+    
+    const initAI = async () => {
+      const result = await checkOllamaAndAutoSelect()
+      
+      if (result.online) {
+        setActiveProvider({ provider: 'ollama', model: result.model })
+        showToast(`🤖 Using Ollama: ${result.model}`, 'success', 4000)
+      } else {
+        setActiveProvider({ provider: 'openrouter', model: 'gemma-4-26b-a4b-it' })
+        showToast(`☁️ Using OpenRouter: gemma-4-26b-a4b-it`, 'warning', 4000)
+      }
+      setToastShown(true)
+    }
+    
+    initAI()
+  }, [])
 
   // Confirmation state
   const [confirmModal, setConfirmModal] = useState({
@@ -145,8 +168,8 @@ export default function Dashboard() {
   const totalLoading = loadingIds.size
   const hasTopics = topics.length > 0
 
-  const providerBadge = settings.aiMode === 'ollama'
-    ? { label: `ollama · ${settings.ollamaModel}`, color: '#4ade80' }
+  const providerBadge = activeProvider.provider === 'ollama'
+    ? { label: `ollama · ${activeProvider.model}`, color: '#4ade80' }
     : { label: 'openrouter · gemma3', color: '#e8f429' }
 
   return (
@@ -305,6 +328,8 @@ export default function Dashboard() {
           </div>
         </footer>
       </div>
+
+      <ToastContainer />
     </>
   )
 }

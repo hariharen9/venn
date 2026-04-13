@@ -25,6 +25,7 @@ export default async function handler(req, res) {
 
   // ── Step 1: Tavily Search ──────────────────────────────────────────────────
   const searchQuery = query || topic
+  const isIndianCinema = topicType === 'cinema' || /tamil|bollywood|kollywood|hindi|movie|film/i.test(topic)
   let searchResults = []
   let tavilyAnswer = ''
 
@@ -36,10 +37,10 @@ export default async function handler(req, res) {
         api_key: TAVILY_KEY,
         query: searchQuery,
         search_depth: 'basic',
-        max_results: 8,
+        max_results: 10,
         include_answer: true,
-        include_raw_content: false,
-        topic: 'news',
+        include_raw_content: true,
+        topic: isIndianCinema ? 'general' : 'news',
       }),
     })
 
@@ -77,6 +78,12 @@ export default async function handler(req, res) {
   const prompt = `You are Venn, an intelligent data extraction engine. Your task is to analyze search results and extract structured data.
 
 ${typeHint}
+
+IMPORTANT CONTEXT: This is for an Indian user. Always:
+- Use INR (₹) currency, NOT USD ($)
+- Use lakhs (1 lakh = 100,000) and crores (1 crore = 10,000,000) instead of millions
+- For Indian cinema (Tamil, Hindi, Kollywood, Bollywood), prioritize Indian sources and actors/directors
+- Convert any dollar amounts to INR using approximate rate: 1 USD ≈ 83 INR
 
 Analyze the topic: "${topic}"
 
@@ -124,19 +131,20 @@ Respond ONLY with valid JSON. No markdown, no explanation.`
   let extractedData = null
   let parseError = null
 
-  const sendResponse = (responseData) => {
+  const sendResponse = (responseData, provider) => {
     return res.status(200).json({
       type: responseData.type || 'briefing',
       confidence: responseData.confidence || 0.5,
       data: responseData.data || responseData,
       sources: searchResults.slice(0, 4),
       fetchedAt: new Date().toISOString(),
-      usedProvider: aiMode === 'ollama' ? `ollama:${ollamaModel}` : 'openrouter:gemma-4',
+      usedProvider: provider,
       parseError: parseError,
     })
   }
 
-  if (aiMode === 'ollama') {
+  // Always try Ollama first, then fall back to OpenRouter
+  if (aiMode === 'ollama' || aiMode === 'auto') {
     try {
       const ollamaRes = await fetch(`${ollamaUrl}/api/generate`, {
         method: 'POST',
@@ -150,39 +158,38 @@ Respond ONLY with valid JSON. No markdown, no explanation.`
         signal: AbortSignal.timeout(30000),
       })
 
-      if (!ollamaRes.ok) {
-        const errText = await ollamaRes.text()
-        throw new Error(`Ollama ${ollamaRes.status}: ${errText}`)
-      }
+      if (ollamaRes.ok) {
+        const ollamaData = await ollamaRes.json()
+        const rawResponse = ollamaData.response?.trim() || ''
 
-      const ollamaData = await ollamaRes.json()
-      const rawResponse = ollamaData.response?.trim() || ''
+        try {
+          extractedData = JSON.parse(rawResponse)
+        } catch (e) {
+          parseError = `JSON parse failed: ${e.message}. Raw: ${rawResponse.slice(0, 200)}`
+          const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            try {
+              extractedData = JSON.parse(jsonMatch[0])
+              parseError = null
+            } catch {}
+          }
+        }
 
-      try {
-        extractedData = JSON.parse(rawResponse)
-      } catch (e) {
-        parseError = `JSON parse failed: ${e.message}. Raw: ${rawResponse.slice(0, 200)}`
-        // Try to extract JSON from response
-        const jsonMatch = rawResponse.match(/\{[\s\S]*\}/)
-        if (jsonMatch) {
-          try {
-            extractedData = JSON.parse(jsonMatch[0])
-            parseError = null
-          } catch {}
+        if (extractedData) {
+          return sendResponse(extractedData, `ollama:${ollamaModel}`)
         }
       }
-
-      return sendResponse(extractedData || { type: 'briefing', data: { title: topic, summary: rawResponse.slice(0, 500) } })
-    } catch (err) {
-      return res.status(502).json({ error: `Ollama failed: ${err.message}. Check if Ollama is running at ${ollamaUrl}` })
+    } catch (ollamaErr) {
+      console.warn('Ollama failed, falling back to OpenRouter:', ollamaErr.message)
     }
   }
 
-  // OpenRouter
+  // OpenRouter fallback
   if (!OPENROUTER_KEY) {
-    return res.status(500).json({ error: 'OPENROUTER_API_KEY not set.' })
+    return res.status(500).json({ error: 'OPENROUTER_API_KEY not set and Ollama unavailable.' })
   }
 
+  // OpenRouter
   try {
     const orRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
@@ -239,7 +246,7 @@ Respond ONLY with valid JSON. No markdown, no explanation.`
       })
     }
 
-    return sendResponse(extractedData)
+    return sendResponse(extractedData, 'openrouter:gemma-4')
   } catch (err) {
     return res.status(502).json({ error: `AI failed: ${err.message}` })
   }

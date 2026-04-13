@@ -26,7 +26,8 @@ export default async function handler(req, res) {
 
   const systemPrompt = `You are Venn, a helpful AI assistant. Answer the user's question based on your knowledge. Be concise and helpful.`
 
-  if (aiMode === 'ollama') {
+  // Always try Ollama first, then fall back to OpenRouter
+  if (aiMode === 'ollama' || aiMode === 'auto') {
     try {
       const ollamaRes = await fetch(`${ollamaUrl}/api/chat`, {
         method: 'POST',
@@ -39,30 +40,24 @@ export default async function handler(req, res) {
         signal: AbortSignal.timeout(30000),
       })
 
-      if (!ollamaRes.ok) {
-        const errText = await ollamaRes.text()
-        throw new Error(`Ollama ${ollamaRes.status}: ${errText}`)
+      if (ollamaRes.ok) {
+        const data = await ollamaRes.json()
+        const response = data.message?.content || 'No response from AI.'
+
+        return res.status(200).json({
+          role: 'assistant',
+          content: response,
+          provider: 'ollama',
+        })
       }
-
-      const data = await ollamaRes.json()
-      const response = data.message?.content || 'No response from AI.'
-
-      return res.status(200).json({
-        role: 'assistant',
-        content: response,
-        provider: 'ollama',
-      })
     } catch (ollamaErr) {
       console.warn('Ollama failed, falling back to OpenRouter:', ollamaErr.message)
-      // Fall through to OpenRouter
     }
   }
 
   // OpenRouter (or fallback)
-
-  // OpenRouter
   if (!OPENROUTER_KEY) {
-    return res.status(500).json({ error: 'OPENROUTER_API_KEY not set.' })
+    return res.status(500).json({ error: 'No AI available. Ollama offline and OpenRouter not configured.' })
   }
 
   try {
