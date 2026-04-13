@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import Head from 'next/head'
+import { useRouter } from 'next/router'
 import { useTopics } from '../lib/useTopics'
 import { useSettings } from '../lib/useSettings'
 import TopicCard from '../components/TopicCard'
@@ -11,12 +12,30 @@ const API_ENDPOINT = '/api/refresh'
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000
 
 export default function Dashboard() {
+  const router = useRouter()
   const { topics, addTopic, removeTopic, setCacheEntry, getCacheEntry } = useTopics()
   const { settings, updateSettings } = useSettings()
   const [loadingIds, setLoadingIds] = useState(new Set())
   const [showAdd, setShowAdd] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [syncingAll, setSyncingAll] = useState(false)
+
+  useEffect(() => {
+    const session = localStorage.getItem('venn_session')
+    if (!session) {
+      router.push('/login')
+      return
+    }
+    try {
+      const { expiresAt } = JSON.parse(session)
+      if (expiresAt <= Date.now()) {
+        localStorage.removeItem('venn_session')
+        router.push('/login')
+      }
+    } catch {
+      router.push('/login')
+    }
+  }, [router])
 
   // Confirmation state
   const [confirmModal, setConfirmModal] = useState({
@@ -109,6 +128,14 @@ export default function Dashboard() {
     addTopic(topic, query)
   }
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST' })
+    } catch {}
+    localStorage.removeItem('venn_session')
+    router.push('/login')
+  }
+
   const totalLoading = loadingIds.size
   const hasTopics = topics.length > 0
 
@@ -183,6 +210,14 @@ export default function Dashboard() {
                 }}
               >
                 {showAdd ? '− CANCEL' : '+ ADD'}
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="text-xs text-dim hover:text-red-400 border border-muted hover:border-red-400/50 px-3 py-1.5 transition-colors"
+                title="Lock dashboard"
+              >
+                × EXIT
               </button>
             </div>
           </div>
