@@ -4,38 +4,38 @@ export default function ConfirmDialog({ isOpen, message, onConfirm, onCancel }) 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 bg-bg/80 backdrop-blur-sm animate-fade-in">
       <div 
-        className="w-full max-w-sm border border-accent bg-surface shadow-2xl animate-slide-up" 
+        className="w-full max-w-sm border border-accent bg-surface shadow-2xl animate-slide-up mx-4" 
         style={{ fontFamily: 'var(--font-mono)' }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-accent bg-accent/5">
-          <span className="text-[10px] text-accent font-bold tracking-widest" style={{ fontFamily: 'var(--font-display)' }}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-accent bg-accent/5">
+          <span className="text-xs text-accent font-bold tracking-widest" style={{ fontFamily: 'var(--font-display)' }}>
             SYSTEM_CONFIRM
           </span>
-          <span className="text-[10px] text-accent/40">v1.0.4</span>
+          <span className="text-xs text-accent/40">v1.0.4</span>
         </div>
 
         {/* Content */}
         <div className="p-6">
           <div className="flex items-start gap-4 mb-6">
-            <span className="text-accent text-xl">?</span>
-            <p className="text-sm text-text leading-relaxed">
+            <span className="text-accent text-2xl">?</span>
+            <p className="text-base text-text leading-relaxed">
               {message}
             </p>
           </div>
 
           {/* Actions */}
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <button
               onClick={onConfirm}
-              className="flex-1 py-2 text-xs border border-accent text-accent hover:bg-accent hover:text-bg transition-colors font-bold"
+              className="flex-1 py-3 sm:py-2 text-sm border border-accent text-accent hover:bg-accent hover:text-bg transition-colors font-bold rounded"
               style={{ fontFamily: 'var(--font-display)' }}
             >
               PROCEED
             </button>
             <button
               onClick={onCancel}
-              className="flex-1 py-2 text-xs border border-border text-dim hover:text-text hover:border-text transition-colors"
+              className="flex-1 py-3 sm:py-2 text-sm border border-border text-dim hover:text-text hover:border-text transition-colors rounded"
             >
               cancel
             </button>

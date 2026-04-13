@@ -20,7 +20,7 @@ export default function AddTopicForm({ onAdd, onClose }) {
 
   return (
     <div
-      className="border border-accent bg-surface p-4 animate-slide-up"
+      className="border border-accent bg-surface p-4 animate-slide-up w-full max-w-md mx-auto"
       style={{ fontFamily: 'var(--font-mono)' }}
       onKeyDown={handleKey}
     >
@@ -31,18 +31,18 @@ export default function AddTopicForm({ onAdd, onClose }) {
         <div className="flex-1 border-t border-muted" />
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-3">
+      <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-dim text-xs block mb-1">topic name *</label>
-          <div className="flex items-center border border-muted focus-within:border-accent transition-colors">
-            <span className="text-accent text-xs px-2">›</span>
+          <label className="text-dim text-xs block mb-2">topic name *</label>
+          <div className="flex items-center border border-muted focus-within:border-accent transition-colors rounded">
+            <span className="text-accent text-sm px-3 py-3">›</span>
             <input
               autoFocus
               type="text"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="e.g. Oppenheimer box office"
-              className="flex-1 bg-transparent text-text text-sm py-2 pr-2 outline-none placeholder:text-muted"
+              className="flex-1 bg-transparent text-text text-base py-3 pr-3 outline-none placeholder:text-muted"
               style={{ fontFamily: 'var(--font-mono)' }}
             />
           </div>
@@ -52,39 +52,39 @@ export default function AddTopicForm({ onAdd, onClose }) {
           <button
             type="button"
             onClick={() => setShowQuery(!showQuery)}
-            className="text-xs text-dim hover:text-text transition-colors"
+            className="text-sm text-dim hover:text-text transition-colors"
           >
             {showQuery ? '− hide' : '+ custom search query'} (optional)
           </button>
 
           {showQuery && (
-            <div className="mt-2 animate-fade-in">
-              <label className="text-dim text-xs block mb-1">
+            <div className="mt-3 animate-fade-in">
+              <label className="text-dim text-xs block mb-2">
                 override search query
               </label>
-              <div className="flex items-center border border-muted focus-within:border-muted transition-colors">
-                <span className="text-dim text-xs px-2">›</span>
+              <div className="flex items-center border border-muted focus-within:border-muted transition-colors rounded">
+                <span className="text-dim text-sm px-3 py-3">›</span>
                 <input
                   type="text"
                   value={query}
                   onChange={(e) => setQuery(e.target.value)}
                   placeholder='e.g. "Oppenheimer 2024 box office total worldwide"'
-                  className="flex-1 bg-transparent text-text text-sm py-2 pr-2 outline-none placeholder:text-muted"
+                  className="flex-1 bg-transparent text-text text-base py-3 pr-3 outline-none placeholder:text-muted"
                   style={{ fontFamily: 'var(--font-mono)' }}
                 />
               </div>
-              <p className="text-xs text-dim mt-1">
+              <p className="text-xs text-dim mt-2">
                 If blank, the topic name is used as the search query.
               </p>
             </div>
           )}
         </div>
 
-        <div className="flex items-center gap-3 pt-1">
+        <div className="flex items-center gap-3 pt-2">
           <button
             type="submit"
             disabled={!topic.trim()}
-            className="text-xs px-4 py-2 bg-accent text-bg font-medium hover:bg-yellow-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex-1 text-sm px-4 py-3 bg-accent text-bg font-medium hover:bg-yellow-300 transition-colors disabled:opacity-40 disabled:cursor-not-allowed rounded"
             style={{ fontFamily: 'var(--font-display)' }}
           >
             ADD
@@ -92,9 +92,9 @@ export default function AddTopicForm({ onAdd, onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="text-xs text-dim hover:text-text transition-colors"
+            className="flex-1 text-sm text-dim hover:text-text transition-colors text-center py-3 rounded border border-transparent hover:border-muted"
           >
-            cancel (esc)
+            cancel
           </button>
         </div>
       </form>

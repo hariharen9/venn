@@ -101,20 +101,20 @@ export default function Login() {
         <div className="scanline" />
 
         {/* Main terminal container */}
-        <div className="w-full max-w-lg relative z-10">
+        <div className="w-full max-w-md sm:max-w-lg px-4 relative z-10">
           {/* VENN Title */}
-          <div className="mb-10 text-center">
+          <div className="mb-8 sm:mb-10 text-center">
             <h1 
-              className="text-6xl sm:text-7xl tracking-[0.3em] text-accent"
+              className="text-5xl sm:text-6xl md:text-7xl tracking-[0.2em] sm:tracking-[0.3em] text-accent"
               style={{ 
                 fontFamily: 'var(--font-display)',
                 textShadow: '0 0 40px rgba(232,244,41,0.3), 0 0 80px rgba(232,244,41,0.1)',
-                letterSpacing: '0.35em'
+                letterSpacing: '0.25em'
               }}
             >
               VENN
             </h1>
-            <p className="text-dim text-xs mt-3 tracking-widest" style={{ fontFamily: 'var(--font-display)' }}>
+            <p className="text-dim text-xs sm:text-sm mt-3 tracking-widest" style={{ fontFamily: 'var(--font-display)' }}>
               PERSONAL INTEL DASHBOARD
             </p>
           </div>
@@ -167,8 +167,8 @@ export default function Login() {
                   </div>
 
                   <form onSubmit={handleSubmit}>
-                    <div className="flex items-center border border-muted focus-within:border-accent focus-within:shadow-[0_0_10px_rgba(232,244,41,0.2)] transition-all duration-300 bg-bg/30">
-                      <span className="text-accent text-sm px-3" style={{ fontFamily: 'var(--font-display)' }}>
+                    <div className="flex items-center border border-muted focus-within:border-accent focus-within:shadow-[0_0_10px_rgba(232,244,41,0.2)] transition-all duration-300 bg-bg/30 rounded">
+                      <span className="text-accent text-lg px-3 py-4 sm:py-3" style={{ fontFamily: 'var(--font-display)' }}>
                         ═══╣
                       </span>
                       <input
@@ -180,19 +180,19 @@ export default function Login() {
                         onKeyDown={handleKeyDown}
                         placeholder="••••••••"
                         disabled={status === 'loading'}
-                        className="flex-1 bg-transparent text-text text-lg py-3 pr-3 outline-none tracking-[0.3em] placeholder:text-muted/50 disabled:opacity-50"
+                        className="flex-1 bg-transparent text-text text-lg sm:text-xl py-4 sm:py-3 pr-3 sm:pr-4 outline-none tracking-[0.3em] placeholder:text-muted/50 disabled:opacity-50"
                         style={{ fontFamily: 'var(--font-mono)' }}
                       />
-                      <span className="pr-3 text-accent">
+                      <span className="pr-3 sm:pr-4 text-accent text-lg">
                         {showCursor ? '▌' : ' '}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between mt-6">
+                    <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
                       <button
                         type="submit"
                         disabled={pin.length < 4 || status === 'loading'}
-                        className="px-6 py-2.5 border text-xs tracking-widest transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed"
+                        className="w-full sm:w-auto px-8 py-3 sm:py-2.5 border text-sm tracking-widest transition-all duration-300 disabled:opacity-30 disabled:cursor-not-allowed rounded"
                         style={{
                           borderColor: pin.length >= 4 ? '#e8f429' : '#2a2a2a',
                           color: pin.length >= 4 ? '#e8f429' : '#444',

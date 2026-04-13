@@ -160,9 +160,9 @@ export default function Dashboard() {
         />
         {/* Header */}
         <header className="border-b border-border sticky top-0 bg-bg z-10">
-          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-accent text-lg tracking-widest" style={{ fontFamily: 'var(--font-display)' }}>
+          <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-4">
+              <h1 className="text-accent text-base sm:text-lg tracking-widest" style={{ fontFamily: 'var(--font-display)' }}>
                 VENN
               </h1>
               {/* Provider badge */}
@@ -181,7 +181,7 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {/* Mobile settings button */}
               <button
                 onClick={() => { setShowSettings(!showSettings); setShowAdd(false) }}
@@ -194,27 +194,27 @@ export default function Dashboard() {
                 <button
                   onClick={() => handleSyncAll()}
                   disabled={syncingAll || totalLoading > 0}
-                  className="text-xs text-dim hover:text-accent border border-muted hover:border-accent px-3 py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="text-xs text-dim hover:text-accent border border-muted hover:border-accent px-2 sm:px-3 py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  {syncingAll ? 'syncing...' : 'sync all'}
+                  {syncingAll ? 'syncing...' : 'sync'}
                 </button>
               )}
 
               <button
                 onClick={() => { setShowAdd(!showAdd); setShowSettings(false) }}
-                className="text-xs px-3 py-1.5 border transition-colors"
+                className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
                 style={{
                   borderColor: showAdd ? '#e8f429' : '#2a2a2a',
                   color: showAdd ? '#e8f429' : '#e8e8e8',
                   fontFamily: 'var(--font-display)',
                 }}
               >
-                {showAdd ? '− CANCEL' : '+ ADD'}
+                {showAdd ? '−' : '+'}
               </button>
 
               <button
                 onClick={handleLogout}
-                className="text-xs text-dim hover:text-red-400 border border-muted hover:border-red-400/50 px-3 py-1.5 transition-colors"
+                className="text-xs text-dim hover:text-red-400 border border-muted hover:border-red-400/50 px-2 sm:px-3 py-1.5 transition-colors"
                 title="Lock dashboard"
               >
                 × EXIT
@@ -248,7 +248,7 @@ export default function Dashboard() {
 
           {/* Empty state */}
           {!hasTopics && !showAdd && !showSettings && (
-            <div className="flex flex-col items-center justify-center py-32 text-center">
+            <div className="flex flex-col items-center justify-center py-20 sm:py-32 text-center px-4">
               <div className="text-4xl text-accent mb-4" style={{ fontFamily: 'var(--font-display)' }}>_</div>
               <p className="text-text text-sm mb-2">no topics yet</p>
               <p className="text-dim text-xs mb-6 max-w-xs">
@@ -256,7 +256,7 @@ export default function Dashboard() {
               </p>
               <button
                 onClick={() => setShowAdd(true)}
-                className="text-xs px-4 py-2 border border-accent text-accent hover:bg-accent hover:text-bg transition-colors"
+                className="text-sm px-6 py-3 border border-accent text-accent hover:bg-accent hover:text-bg transition-colors rounded"
                 style={{ fontFamily: 'var(--font-display)' }}
               >
                 + ADD YOUR FIRST TOPIC
@@ -267,14 +267,14 @@ export default function Dashboard() {
           {/* Topic grid */}
           {hasTopics && (
             <>
-              <div className="flex items-center gap-3 mb-4">
+              <div className="flex items-center gap-3 mb-4 px-2">
                 <span className="text-dim text-xs">
                   {topics.length} topic{topics.length !== 1 ? 's' : ''}
                 </span>
                 <div className="flex-1 border-t border-border" />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 px-2">
                 {topics.map((topic) => (
                   <TopicCard
                     key={topic.id}
@@ -291,8 +291,8 @@ export default function Dashboard() {
         </main>
 
         {/* Footer */}
-        <footer className="border-t border-border mt-12">
-          <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+        <footer className="border-t border-border mt-8 sm:mt-12">
+          <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
             <span className="text-dim text-xs">tavily search + {settings.aiMode === 'ollama' ? `ollama (${settings.ollamaModel})` : 'openrouter'}</span>
             <span className="text-dim text-xs">4h cache · manual sync only</span>
           </div>
