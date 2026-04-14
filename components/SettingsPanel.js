@@ -5,6 +5,8 @@ const OLLAMA_COMMON_MODELS = ['gemma3', 'gemma3:12b', 'llama3.2', 'llama3.1', 'm
 export default function SettingsPanel({ settings, onUpdate, onClose }) {
   const [ollamaStatus, setOllamaStatus] = useState('idle') // idle | checking | online | offline
   const [availableModels, setAvailableModels] = useState([])
+  const [weatherQuery, setWeatherQuery] = useState(settings.manualLocation || '')
+  const [isSearchingWeather, setIsSearchingWeather] = useState(false)
 
   const handleExport = () => {
     const data = {
@@ -31,6 +33,31 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
       alert('Data imported and fully synced with the Cloud Backend!')
     } catch (err) {
       alert('Invalid data format. Import failed.')
+    }
+  }
+
+  const searchCity = async () => {
+    if (!weatherQuery.trim()) return
+    setIsSearchingWeather(true)
+    try {
+      const res = await fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(weatherQuery)}&count=1&language=en&format=json`)
+      const data = await res.json()
+      if (data.results && data.results.length > 0) {
+        const result = data.results[0]
+        onUpdate({
+          weatherMode: 'manual',
+          manualLocation: result.name,
+          manualLat: result.latitude,
+          manualLon: result.longitude
+        })
+        setWeatherQuery(result.name)
+      } else {
+        alert('City not found. Try a different name.')
+      }
+    } catch (err) {
+      alert('Search failed. Check your connection.')
+    } finally {
+      setIsSearchingWeather(false)
     }
   }
 
@@ -208,7 +235,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
         {/* Widget Settings */}
         <div className="border-t border-border pt-4 space-y-4">
           <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>WIDGET_SETTINGS</p>
-          
+
           {/* Default Topic Type */}
           <div>
             <p className="text-dim text-xs mb-2">default topic type</p>
@@ -269,7 +296,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
         {/* Chat Settings */}
         <div className="border-t border-border pt-4 space-y-4">
           <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>CHAT_SETTINGS</p>
-          
+
           <div className="space-y-3">
             <label className="flex items-center justify-between cursor-pointer">
               <span className="text-dim text-xs">enable chat on widgets</span>
@@ -292,11 +319,59 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
           </div>
         </div>
 
+        {/* Weather Settings */}
+        <div className="border-t border-border pt-4 space-y-4">
+          <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>WEATHER_SETTINGS</p>
+
+          <div className="flex gap-2">
+            {['auto', 'manual'].map((mode) => (
+              <button
+                key={mode}
+                onClick={() => onUpdate({ weatherMode: mode })}
+                className="flex-1 py-1.5 text-[10px] border transition-colors rounded uppercase tracking-widest"
+                style={{
+                  borderColor: settings.weatherMode === mode ? '#e8f429' : '#1e1e1e',
+                  color: settings.weatherMode === mode ? '#e8f429' : '#666',
+                  background: settings.weatherMode === mode ? 'rgba(232,244,41,0.05)' : 'transparent',
+                }}
+              >
+                {mode === 'auto' ? 'Live Geolocation' : 'Manual City'}
+              </button>
+            ))}
+          </div>
+
+          {settings.weatherMode === 'manual' && (
+            <div className="flex gap-2 animate-in fade-in duration-300">
+              <input
+                type="text"
+                value={weatherQuery}
+                placeholder="Enter city (e.g. London)"
+                onChange={(e) => setWeatherQuery(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && searchCity()}
+                className="flex-1 bg-surface border border-muted px-3 py-2 text-xs outline-none focus:border-accent text-text"
+                style={{ fontFamily: 'var(--font-mono)' }}
+              />
+              <button
+                onClick={searchCity}
+                disabled={isSearchingWeather}
+                className="px-3 border border-muted hover:border-accent text-[10px] text-dim hover:text-accent transition-colors disabled:opacity-50"
+              >
+                {isSearchingWeather ? '...' : 'SET'}
+              </button>
+            </div>
+          )}
+          <p className="text-[9px] text-dim italic">
+            {settings.weatherMode === 'auto'
+              ? '› Requests browser location permission on load.'
+              : `› Locked to ${settings.manualLocation || 'nothing set'}.`}
+          </p>
+        </div>
+
         {/* Data Management */}
         <div className="border-t border-border pt-4 mt-4 space-y-4 pb-2">
           <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>DATA_MANAGEMENT</p>
           <p className="text-xs text-dim">
-            Transfer your dashboard data manually between isolated domains (e.g., from localhost to production).
+            Transfer your dashboard data manually between isolated domains (e.g., from localhost to production 😉).
           </p>
           <div className="flex gap-2">
             <button onClick={handleExport} className="flex-1 text-xs px-3 py-2 border border-muted hover:border-accent text-dim hover:text-accent transition-colors rounded">

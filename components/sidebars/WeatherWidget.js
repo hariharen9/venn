@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useSettings } from '../../lib/useSettings'
 
 const WEATHER_CODES = {
   0: { label: 'Clear Sky', icon: '☀️' },
@@ -14,43 +15,54 @@ const WEATHER_CODES = {
 }
 
 export default function WeatherWidget() {
+  const { settings } = useSettings()
   const [data, setData] = useState(null)
   const [locationName, setLocationName] = useState('Detecting...')
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!navigator.geolocation) {
-      setError('Geo not supported')
+  const fetchWeatherData = useCallback(async (lat, lon, name) => {
+    setLoading(true)
+    setError(null)
+    try {
+      if (name) setLocationName(name)
+      else {
+        // Reverse Geocode for auto mode
+        const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`)
+        const geoData = await geoRes.json()
+        setLocationName(`${geoData.city}, ${geoData.principalSubdivisionCode || geoData.countryCode}`)
+      }
+
+      const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m`)
+      const weatherData = await weatherRes.json()
+      setData(weatherData.current)
+    } catch (err) {
+      setError('Fetch failed')
+    } finally {
       setLoading(false)
-      return
     }
+  }, [])
 
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude, longitude } = pos.coords
-        try {
-          // 1. Fetch Location Name (Reverse Geocode)
-          const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=en`)
-          const geoData = await geoRes.json()
-          setLocationName(`${geoData.city}, ${geoData.principalSubdivisionCode || geoData.countryCode}`)
+  useEffect(() => {
+    if (settings.weatherMode === 'manual' && settings.manualLat && settings.manualLon) {
+      fetchWeatherData(settings.manualLat, settings.manualLon, settings.manualLocation)
+    } else {
+      // Auto mode
+      if (!navigator.geolocation) {
+        setError('Geo not supported')
+        setLoading(false)
+        return
+      }
 
-          // 2. Fetch Weather Data
-          const weatherRes = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m`)
-          const weatherData = await weatherRes.json()
-          setData(weatherData.current)
-        } catch (err) {
-          setError('Fetch failed')
-        } finally {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => fetchWeatherData(pos.coords.latitude, pos.coords.longitude),
+        (err) => {
+          setError('Permission denied')
           setLoading(false)
         }
-      },
-      (err) => {
-        setError('Permission denied')
-        setLoading(false)
-      }
-    )
-  }, [])
+      )
+    }
+  }, [settings.weatherMode, settings.manualLat, settings.manualLon, settings.manualLocation, fetchWeatherData])
 
   if (loading) {
     return (
@@ -65,7 +77,9 @@ export default function WeatherWidget() {
       <div className="border border-border p-3 min-h-[140px] flex flex-col justify-center bg-surface">
          <h3 className="text-accent text-xs tracking-widest mb-2" style={{ fontFamily: 'var(--font-display)' }}>ENVIRONMENT</h3>
          <p className="text-[10px] text-red-500/80 uppercase tracking-tighter">Err: {error}</p>
-         <p className="text-[9px] text-dim mt-2 italic">Allow location access for live data feed.</p>
+         <p className="text-[9px] text-dim mt-2 italic">
+           {settings.weatherMode === 'manual' ? 'Check manual City settings.' : 'Allow location access for live data feed.'}
+         </p>
       </div>
     )
   }
@@ -75,10 +89,17 @@ export default function WeatherWidget() {
   return (
     <div className="border border-border p-3 space-y-3 bg-surface" style={{ fontFamily: 'var(--font-mono)' }}>
       <div className="flex justify-between items-start border-b border-border pb-2">
-        <h3 className="text-accent text-xs tracking-widest" style={{ fontFamily: 'var(--font-display)' }}>
-          ENVIRONMENT
-        </h3>
-        <span className="text-[10px] text-dim">{locationName.toUpperCase()}</span>
+        <div className="flex flex-col">
+          <h3 className="text-accent text-xs tracking-widest" style={{ fontFamily: 'var(--font-display)' }}>
+            ENVIRONMENT
+          </h3>
+          <span className="text-[9px] text-dim/50 tracking-tighter mt-0.5">
+            {settings.weatherMode === 'auto' ? 'LIVE_UPLINK' : 'MANUAL_LOCK'}
+          </span>
+        </div>
+        <span className="text-[10px] text-dim text-right max-w-[120px] truncate">
+          {locationName.toUpperCase()}
+        </span>
       </div>
       
       <div className="flex items-center justify-between">

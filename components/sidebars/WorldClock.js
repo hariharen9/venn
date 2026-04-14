@@ -21,9 +21,9 @@ export default function WorldClock() {
   const fmt = (date, tz) => {
     try {
       if (tz === 'LOCAL') {
-        return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        return date.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })
       }
-      return date.toLocaleTimeString('en-US', { timeZone: tz, hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      return date.toLocaleTimeString('en-US', { timeZone: tz, hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' })
     } catch (e) { return 'ERR' }
   }
 
