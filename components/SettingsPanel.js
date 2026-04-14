@@ -91,15 +91,17 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
       style={{ fontFamily: 'var(--font-mono)' }}
     >
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <span className="text-xs text-accent" style={{ fontFamily: 'var(--font-display)' }}>AI_SETTINGS</span>
+        <span className="text-xs text-accent" style={{ fontFamily: 'var(--font-display)' }}>Settings</span>
         <button onClick={onClose} className="text-dim hover:text-text text-xs">× close</button>
       </div>
 
       <div className="p-4 space-y-5">
 
-        {/* Mode toggle */}
-        <div>
-          <p className="text-dim text-xs mb-2">ai provider</p>
+        {/* AI Settings Section */}
+        <div className="space-y-4">
+          <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>AI_SETTINGS</p>
+          <div>
+            <p className="text-dim text-[10px] mb-2 uppercase tracking-tighter">ai provider</p>
           <div className="flex gap-2 flex-col sm:flex-row">
             {['ollama', 'openrouter'].map((mode) => (
               <button
@@ -126,6 +128,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
               : 'Uses OpenRouter free tier (Gemma 3 27B). Subject to rate limits.'}
           </p>
         </div>
+      </div>
 
         {/* Ollama config */}
         {settings.aiMode === 'ollama' && (
