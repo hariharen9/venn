@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect } from 'react'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, sortableKeyboardCoordinates, rectSortingStrategy } from '@dnd-kit/sortable'
 import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useTopics } from '../lib/useTopics'
@@ -12,15 +14,17 @@ import SettingsPanel from '../components/SettingsPanel'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ToastContainer, { showToast } from '../components/Toast'
 import CloudSyncIndicator from '../components/CloudSyncIndicator'
+import LeftSidebar from '../components/sidebars/LeftSidebar'
+import RightSidebar from '../components/sidebars/RightSidebar'
 
 const API_ENDPOINT = '/api/refresh'
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000
 
 export default function Dashboard() {
   const router = useRouter()
-  const { topics, addTopic, removeTopic, setCacheEntry, getCacheEntry } = useTopics()
+  const { topics, addTopic, removeTopic, reorderTopics, setCacheEntry, getCacheEntry } = useTopics()
   const { settings, updateSettings, checkOllamaAndAutoSelect, getActiveModel } = useSettings()
-  const { packages, addPackage, removePackage, setCacheEntry: setPkgCacheEntry, getCacheEntry: getPkgCacheEntry } = usePackages()
+  const { packages, addPackage, removePackage, reorderPackages, setCacheEntry: setPkgCacheEntry, getCacheEntry: getPkgCacheEntry } = usePackages()
   const [loadingIds, setLoadingIds] = useState(new Set())
   const [pkgLoadingIds, setPkgLoadingIds] = useState(new Set())
   const [showAdd, setShowAdd] = useState(false)
@@ -30,6 +34,21 @@ export default function Dashboard() {
   const [syncingAllPkgs, setSyncingAllPkgs] = useState(false)
   const [toastShown, setToastShown] = useState(false)
   const [activeProvider, setActiveProvider] = useState({ provider: 'openrouter', model: 'gemma-4-26b-a4b-it' })
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  )
+
+  const handleDragEndTopics = (event) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) reorderTopics(active.id, over.id)
+  }
+
+  const handleDragEndPackages = (event) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) reorderPackages(active.id, over.id)
+  }
 
   useEffect(() => {
     const session = localStorage.getItem('venn_session')
@@ -358,124 +377,135 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <main className="max-w-6xl mx-auto px-4 py-6">
-
-          {/* Settings panel */}
-          {showSettings && (
-            <div className="mb-6">
-              <SettingsPanel
-                settings={settings}
-                onUpdate={updateSettings}
-                onClose={() => setShowSettings(false)}
-              />
-            </div>
-          )}
-
-          {/* Add topic form */}
-          {showAdd && (
-            <div className="mb-6">
-              <AddTopicForm
-                onAdd={handleAddTopic}
-                onClose={() => setShowAdd(false)}
-              />
-            </div>
-          )}
-
-          {/* Add package form */}
-          {showAddPackage && (
-            <div className="mb-6">
-              <AddPackageForm
-                onAdd={handleAddPackage}
-                onClose={() => setShowAddPackage(false)}
-              />
-            </div>
-          )}
-
-          {/* Empty state */}
-          {!hasTopics && !hasPackages && !showAdd && !showAddPackage && !showSettings && (
-            <div className="flex flex-col items-center justify-center py-20 sm:py-32 text-center px-4">
-              <div className="text-4xl text-accent mb-4" style={{ fontFamily: 'var(--font-display)' }}>_</div>
-              <p className="text-text text-sm mb-2">nothing tracked yet</p>
-              <p className="text-dim text-xs mb-6 max-w-xs">
-                add topics you want to track (movies, news, people) or packages to monitor (PyPI, npm, VS Code).
-              </p>
-              <div className="flex flex-wrap justify-center gap-3">
-                <button
-                  onClick={() => setShowAdd(true)}
-                  className="text-sm px-6 py-3 border border-accent text-accent hover:bg-accent hover:text-bg transition-colors rounded"
-                  style={{ fontFamily: 'var(--font-display)' }}
-                >
-                  + ADD TOPIC
-                </button>
-                <button
-                  onClick={() => setShowAddPackage(true)}
-                  className="text-sm px-6 py-3 border border-muted text-dim hover:border-accent hover:text-accent transition-colors rounded"
-                  style={{ fontFamily: 'var(--font-display)' }}
-                >
-                  + ADD PACKAGE
-                </button>
+        <div className="flex max-w-[100vw] justify-center items-start">
+          <LeftSidebar />
+          
+          <main className="flex-1 max-w-6xl px-4 py-6 min-w-0">
+            {/* Settings panel */}
+            {showSettings && (
+              <div className="mb-6">
+                <SettingsPanel
+                  settings={settings}
+                  onUpdate={updateSettings}
+                  onClose={() => setShowSettings(false)}
+                />
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Topic grid */}
-          {hasTopics && (
-            <>
-              <div className="flex items-center gap-3 mb-4 px-2">
-                <span className="text-dim text-xs">
-                  {topics.length} topic{topics.length !== 1 ? 's' : ''}
-                </span>
-                <div className="flex-1 border-t border-border" />
+            {/* Add topic form */}
+            {showAdd && (
+              <div className="mb-6">
+                <AddTopicForm
+                  onAdd={handleAddTopic}
+                  onClose={() => setShowAdd(false)}
+                />
               </div>
+            )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 px-2">
-                {topics.map((topic) => (
-                  <TopicCard
-                    key={topic.id}
-                    topic={topic}
-                    cacheEntry={getCacheEntry(topic.id)}
-                    onSync={fetchTopic}
-                    onRemove={removeTopic}
-                    isLoading={loadingIds.has(topic.id)}
-                    settings={settings}
-                  />
-                ))}
+            {/* Add package form */}
+            {showAddPackage && (
+              <div className="mb-6">
+                <AddPackageForm
+                  onAdd={handleAddPackage}
+                  onClose={() => setShowAddPackage(false)}
+                />
               </div>
-            </>
-          )}
+            )}
 
-          {/* ── Package Tracker ─────────────────────────────────────────── */}
-          {hasPackages && (
-            <div className="mt-8">
-              <div className="flex items-center gap-3 mb-4 px-2">
-                <span className="text-dim text-xs">
-                  {packages.length} package{packages.length !== 1 ? 's' : ''}
-                </span>
-                <div className="flex-1 border-t border-border" />
-                <button
-                  onClick={() => handleSyncAllPkgs()}
-                  disabled={syncingAllPkgs || totalPkgLoading > 0}
-                  className="text-xs text-dim hover:text-accent border border-muted hover:border-accent px-2 py-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {syncingAllPkgs ? 'syncing...' : 'sync all'}
-                </button>
+            {/* Empty state */}
+            {!hasTopics && !hasPackages && !showAdd && !showAddPackage && !showSettings && (
+              <div className="flex flex-col items-center justify-center py-20 sm:py-32 text-center px-4">
+                <div className="text-4xl text-accent mb-4" style={{ fontFamily: 'var(--font-display)' }}>_</div>
+                <p className="text-text text-sm mb-2">nothing tracked yet</p>
+                <p className="text-dim text-xs mb-6 max-w-xs">
+                  add topics you want to track (movies, news, people) or packages to monitor (PyPI, npm, VS Code).
+                </p>
+                <div className="flex flex-wrap justify-center gap-3">
+                  <button
+                    onClick={() => setShowAdd(true)}
+                    className="text-sm px-6 py-3 border border-accent text-accent hover:bg-accent hover:text-bg transition-colors rounded"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    + ADD TOPIC
+                  </button>
+                  <button
+                    onClick={() => setShowAddPackage(true)}
+                    className="text-sm px-6 py-3 border border-muted text-dim hover:border-accent hover:text-accent transition-colors rounded"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    + ADD PACKAGE
+                  </button>
+                </div>
               </div>
+            )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 px-2">
-                {packages.map((pkg) => (
-                  <PackageCard
-                    key={pkg.id}
-                    pkg={pkg}
-                    cacheEntry={getPkgCacheEntry(pkg.id)}
-                    onSync={fetchPackage}
-                    onRemove={removePackage}
-                    isLoading={pkgLoadingIds.has(pkg.id)}
-                  />
-                ))}
+            {/* Topic grid */}
+            {hasTopics && (
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndTopics}>
+                <div className="flex items-center gap-3 mb-4 px-2">
+                  <span className="text-dim text-xs">
+                    {topics.length} topic{topics.length !== 1 ? 's' : ''}
+                  </span>
+                  <div className="flex-1 border-t border-border" />
+                </div>
+
+                <SortableContext items={topics.map((t) => t.id)} strategy={rectSortingStrategy}>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 px-2">
+                    {topics.map((topic) => (
+                      <TopicCard
+                        key={topic.id}
+                        topic={topic}
+                        cacheEntry={getCacheEntry(topic.id)}
+                        onSync={fetchTopic}
+                        onRemove={removeTopic}
+                        isLoading={loadingIds.has(topic.id)}
+                        settings={settings}
+                      />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            )}
+
+            {/* ── Package Tracker ─────────────────────────────────────────── */}
+            {hasPackages && (
+              <div className="mt-8">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndPackages}>
+                  <div className="flex items-center gap-3 mb-4 px-2">
+                    <span className="text-dim text-xs">
+                      {packages.length} package{packages.length !== 1 ? 's' : ''}
+                    </span>
+                    <div className="flex-1 border-t border-border" />
+                    <button
+                      onClick={() => handleSyncAllPkgs()}
+                      disabled={syncingAllPkgs || totalPkgLoading > 0}
+                      className="text-xs text-dim hover:text-accent border border-muted hover:border-accent px-2 py-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {syncingAllPkgs ? 'syncing...' : 'sync all'}
+                    </button>
+                  </div>
+
+                  <SortableContext items={packages.map(pkg => pkg.id)} strategy={rectSortingStrategy}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 px-2">
+                      {packages.map((pkg) => (
+                        <PackageCard
+                          key={pkg.id}
+                          pkg={pkg}
+                          cacheEntry={getPkgCacheEntry(pkg.id)}
+                          onSync={fetchPackage}
+                          onRemove={removePackage}
+                          isLoading={pkgLoadingIds.has(pkg.id)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               </div>
-            </div>
-          )}
-        </main>
+            )}
+          </main>
+
+          <RightSidebar />
+        </div>
 
         {/* Footer */}
         <footer className="border-t border-border mt-8 sm:mt-12">

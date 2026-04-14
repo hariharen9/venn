@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000
 
@@ -29,6 +31,22 @@ function timeAgo(cachedAt) {
 export default function PackageCard({ pkg, cacheEntry, onSync, onRemove, isLoading }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
 
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: pkg.id })
+
+  const dndStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 'auto',
+    opacity: isDragging ? 0.8 : 1,
+  }
+
   const config = PLATFORM_CONFIG[pkg.platform] || { label: pkg.platform, color: '#666', icon: '📦' }
 
   const hasData = cacheEntry && cacheEntry.downloads
@@ -52,15 +70,25 @@ export default function PackageCard({ pkg, cacheEntry, onSync, onRemove, isLoadi
 
   return (
     <div
-      className={`card-hover relative border bg-surface rounded-none overflow-hidden transition-all duration-300 ${isLoading ? 'opacity-70' : 'opacity-100'}`}
+      ref={setNodeRef}
+      className={`card-hover relative border bg-surface rounded-none overflow-hidden transition-[border-color,opacity] duration-300 ${isLoading ? 'opacity-70' : 'opacity-100'} ${isDragging ? 'shadow-2xl border-accent' : ''}`}
       style={{
         fontFamily: 'var(--font-mono)',
-        borderColor: isLoading ? `${config.color}40` : '#1e1e1e',
+        borderColor: isDragging ? '#e8f429' : isLoading ? `${config.color}40` : '#1e1e1e',
+        ...dndStyle,
       }}
     >
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
         <div className="flex items-center gap-2 min-w-0">
+          {/* Grab Handle */}
+          <span 
+            {...attributes} 
+            {...listeners} 
+            className="text-dim/50 hover:text-text cursor-grab active:cursor-grabbing text-xs select-none pr-1"
+          >
+            ⠿
+          </span>
           {/* Status dot */}
           <span
             className="status-dot flex-shrink-0"
