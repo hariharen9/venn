@@ -6,6 +6,34 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
   const [ollamaStatus, setOllamaStatus] = useState('idle') // idle | checking | online | offline
   const [availableModels, setAvailableModels] = useState([])
 
+  const handleExport = () => {
+    const data = {
+      settings: localStorage.getItem('venn_settings'),
+      topics: localStorage.getItem('venn_topics'),
+      packages: localStorage.getItem('venn_packages')
+    }
+    navigator.clipboard.writeText(JSON.stringify(data))
+    alert('Dashboard data copied to clipboard!\n\nOpen Venn on your destination site (or phone), open settings, and click IMPORT DATA to paste this.')
+  }
+
+  const handleImport = () => {
+    const input = prompt('Paste your exported dashboard JSON data here:')
+    if (!input) return
+    try {
+      const data = JSON.parse(input)
+      if (data.settings) localStorage.setItem('venn_settings', data.settings)
+      if (data.topics) localStorage.setItem('venn_topics', data.topics)
+      if (data.packages) localStorage.setItem('venn_packages', data.packages)
+
+      // Notify the dashboard to read the new data and simultaneously push it to the remote cloud
+      window.dispatchEvent(new Event('venn_sync_updated'))
+      window.dispatchEvent(new Event('venn_needs_sync'))
+      alert('Data imported and fully synced with the Cloud Backend!')
+    } catch (err) {
+      alert('Invalid data format. Import failed.')
+    }
+  }
+
   const checkOllama = async () => {
     setOllamaStatus('checking')
     try {
@@ -261,6 +289,22 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
                 className="accent-accent"
               />
             </label>
+          </div>
+        </div>
+
+        {/* Data Management */}
+        <div className="border-t border-border pt-4 mt-4 space-y-4 pb-2">
+          <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>DATA_MANAGEMENT</p>
+          <p className="text-xs text-dim">
+            Transfer your dashboard data manually between isolated domains (e.g., from localhost to production).
+          </p>
+          <div className="flex gap-2">
+            <button onClick={handleExport} className="flex-1 text-xs px-3 py-2 border border-muted hover:border-accent text-dim hover:text-accent transition-colors rounded">
+              [ EXPORT TO CLIPBOARD ]
+            </button>
+            <button onClick={handleImport} className="flex-1 text-xs px-3 py-2 border border-muted hover:border-accent text-dim hover:text-accent transition-colors rounded">
+              [ IMPORT FROM CLIPBOARD ]
+            </button>
           </div>
         </div>
 
