@@ -16,10 +16,23 @@ function timeAgo(cachedAt) {
 }
 
 export default function TopicCard({ topic, cacheEntry, onSync, onRemove, isLoading, chatHistory = [], onSendChat, settings }) {
-  const [expanded, setExpanded] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
-  const [localChatHistory, setLocalChatHistory] = useState(() => chatHistory || [])
+  const [localChatHistory, setLocalChatHistory] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`venn_chat_${topic.id}`)
+      return saved ? JSON.parse(saved) : []
+    } catch { return [] }
+  })
   const [showChatModal, setShowChatModal] = useState(false)
+
+  // Persist chat history to localStorage
+  useEffect(() => {
+    try {
+      if (localChatHistory.length > 0) {
+        localStorage.setItem(`venn_chat_${topic.id}`, JSON.stringify(localChatHistory))
+      }
+    } catch (e) { console.warn('Failed to persist chat:', e) }
+  }, [localChatHistory, topic.id])
 
   const hasData = cacheEntry && (cacheEntry.summary || cacheEntry.data)
   const isError = cacheEntry && cacheEntry.error

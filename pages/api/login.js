@@ -29,8 +29,9 @@ export default async function handler(req, res) {
   const cookieValue = Buffer.from(APP_PIN).toString('base64')
   
   const oneDaySeconds = 24 * 60 * 60
+  const securePart = process.env.NODE_ENV === 'production' ? '; Secure' : ''
   
-  res.setHeader('Set-Cookie', `venn_auth=${cookieValue}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${oneDaySeconds}`)
+  res.setHeader('Set-Cookie', `venn_auth=${cookieValue}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${oneDaySeconds}${securePart}`)
 
   return res.status(200).json({ success: true, expiresIn: oneDaySeconds })
 }

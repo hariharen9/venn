@@ -10,7 +10,7 @@ exports.handler = async (event) => {
 
   let body
   try { body = JSON.parse(event.body) }
-  catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid JSON' }) }
+  catch { return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid JSON' }) } }
 
   const { topic, query, topicType = 'auto', aiMode = 'openrouter', ollamaModel = 'gemma3', ollamaUrl = 'http://localhost:11434' } = body
 

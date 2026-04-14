@@ -67,7 +67,7 @@ export default function Dashboard() {
     onConfirm: null,
   })
 
-  const closeConfirm = () => setConfirmModal({ ...confirmModal, isOpen: false })
+  const closeConfirm = useCallback(() => setConfirmModal(prev => ({ ...prev, isOpen: false })), [])
 
   const fetchTopic = useCallback(
     async (topic, force = false) => {

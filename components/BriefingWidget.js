@@ -20,13 +20,6 @@ export default function BriefingWidget({ data, sources, onChat, chatHistory, isL
 
   const sentimentBadge = getSentimentBadge(sentiment)
 
-  const handleSendChat = async () => {
-    if (!chatInput.trim()) return
-    const userMessage = chatInput
-    setChatInput('')
-    onChat(userMessage)
-  }
-
   return (
     <div className="space-y-4">
       {/* Header */}

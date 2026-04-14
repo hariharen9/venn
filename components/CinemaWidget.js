@@ -1,33 +1,38 @@
 import { useState } from 'react'
 
+// Sentinel values the AI returns when data is unavailable
+const EMPTY_VALUES = ['not available', 'n/a', 'unknown', 'tba', 'tbd', 'none', 'null', 'undefined', '-', '—', '']
+
+/** Returns true only if the value contains meaningful data */
+function hasValue(val) {
+  if (!val) return false
+  if (typeof val !== 'string') return true
+  return !EMPTY_VALUES.includes(val.trim().toLowerCase())
+}
+
 function formatCurrency(value) {
-  if (!value) return null
-  const num = value.replace(/[^0-9.]/g, '')
+  if (!hasValue(value)) return null
+  const num = parseFloat(value.replace(/[^0-9.]/g, ''))
+  if (isNaN(num) || num === 0) return null
   if (num >= 1000000000) return `$${(num / 1000000000).toFixed(1)}B`
   if (num >= 1000000) return `$${(num / 1000000).toFixed(1)}M`
-  return value
+  return `$${num.toLocaleString()}`
 }
 
 function formatDate(dateStr) {
-  if (!dateStr) return null
-  try {
-    const d = new Date(dateStr)
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  } catch {
-    return dateStr
-  }
+  if (!hasValue(dateStr)) return null
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 }
 
 function calculateDaysUntil(dateStr) {
-  if (!dateStr) return null
-  try {
-    const target = new Date(dateStr)
-    const now = new Date()
-    const diff = target - now
-    return Math.ceil(diff / (1000 * 60 * 60 * 24))
-  } catch {
-    return null
-  }
+  if (!hasValue(dateStr)) return null
+  const target = new Date(dateStr)
+  if (isNaN(target.getTime())) return null
+  const now = new Date()
+  const diff = target - now
+  return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
 
 function getSentimentColor(sentiment) {
@@ -44,10 +49,15 @@ export default function CinemaWidget({ data, sources, onChat, chatHistory, isLoa
 
   const { title, stats, highlights = [], milestones = [], cast = [], news = [] } = data
 
-  const daysUntil = stats?.release_date ? calculateDaysUntil(stats.release_date) : null
-  const isReleased = daysUntil !== null && daysUntil <= 0
+  // Filter out sentinel values from arrays
+  const validCast = cast.filter(hasValue)
+  const validHighlights = highlights.filter(hasValue)
+  const validMilestones = milestones.filter(hasValue)
 
-  const progressPercent = daysUntil !== null ? Math.min(100, ((365 - daysUntil) / 365) * 100) : 0
+  const daysUntil = hasValue(stats?.release_date) ? calculateDaysUntil(stats.release_date) : null
+  const isReleased = daysUntil !== null && !isNaN(daysUntil) && daysUntil <= 0
+
+  const progressPercent = (daysUntil !== null && !isNaN(daysUntil)) ? Math.max(0, Math.min(100, ((365 - daysUntil) / 365) * 100)) : 0
 
   return (
     <div className="space-y-4">
@@ -56,7 +66,7 @@ export default function CinemaWidget({ data, sources, onChat, chatHistory, isLoa
         <h3 className="text-text text-lg font-medium" style={{ fontFamily: 'var(--font-display)' }}>
           {title || 'Unknown Title'}
         </h3>
-        {stats?.genre && (
+        {hasValue(stats?.genre) && (
           <span className="text-xs text-accent border border-accent/30 px-2 py-0.5 inline-block mt-1">
             {stats.genre}
           </span>
@@ -64,27 +74,27 @@ export default function CinemaWidget({ data, sources, onChat, chatHistory, isLoa
       </div>
 
       {/* Stats Grid */}
-      {stats && (
+      {stats && (hasValue(stats.ww_gross) || hasValue(stats.budget) || hasValue(stats.rating) || hasValue(stats.runtime)) && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {stats.ww_gross && (
+          {formatCurrency(stats.ww_gross) && (
             <div className="bg-bg border border-border p-2 rounded">
               <div className="text-dim text-[10px] uppercase tracking-wider">Box Office</div>
               <div className="text-accent text-sm font-medium">{formatCurrency(stats.ww_gross)}</div>
             </div>
           )}
-          {stats.budget && (
+          {formatCurrency(stats.budget) && (
             <div className="bg-bg border border-border p-2 rounded">
               <div className="text-dim text-[10px] uppercase tracking-wider">Budget</div>
               <div className="text-text text-sm">{formatCurrency(stats.budget)}</div>
             </div>
           )}
-          {stats.rating && (
+          {hasValue(stats.rating) && (
             <div className="bg-bg border border-border p-2 rounded">
               <div className="text-dim text-[10px] uppercase tracking-wider">Rating</div>
               <div className="text-text text-sm">{stats.rating}</div>
             </div>
           )}
-          {stats.runtime && (
+          {hasValue(stats.runtime) && (
             <div className="bg-bg border border-border p-2 rounded">
               <div className="text-dim text-[10px] uppercase tracking-wider">Runtime</div>
               <div className="text-text text-sm">{stats.runtime}</div>
@@ -94,17 +104,17 @@ export default function CinemaWidget({ data, sources, onChat, chatHistory, isLoa
       )}
 
       {/* Release Status / Countdown */}
-      {stats?.release_date && (
+      {formatDate(stats?.release_date) && (
         <div className="bg-bg border border-border p-3 rounded">
           <div className="flex items-center justify-between">
             <span className="text-dim text-xs">Release: {formatDate(stats.release_date)}</span>
-            {daysUntil !== null && (
+            {daysUntil !== null && !isNaN(daysUntil) && (
               <span className={`text-xs px-2 py-0.5 rounded ${isReleased ? 'bg-green-900/30 text-green-400' : 'bg-yellow-900/30 text-yellow-400'}`}>
                 {isReleased ? 'RELEASED' : `${daysUntil} days`}
               </span>
             )}
           </div>
-          {!isReleased && (
+          {!isReleased && daysUntil !== null && !isNaN(daysUntil) && (
             <div className="mt-2 h-1.5 bg-border rounded-full overflow-hidden">
               <div 
                 className="h-full bg-accent transition-all duration-500"
@@ -116,18 +126,18 @@ export default function CinemaWidget({ data, sources, onChat, chatHistory, isLoa
       )}
 
       {/* Director */}
-      {stats?.director && (
+      {hasValue(stats?.director) && (
         <div className="text-dim text-xs">
           Directed by <span className="text-text">{stats.director}</span>
         </div>
       )}
 
       {/* Highlights */}
-      {highlights.length > 0 && (
+      {validHighlights.length > 0 && (
         <div>
           <div className="text-dim text-[10px] uppercase tracking-wider mb-1">Highlights</div>
           <ul className="space-y-1">
-            {highlights.map((h, i) => (
+            {validHighlights.map((h, i) => (
               <li key={i} className="text-text text-xs flex items-start gap-2">
                 <span className="text-accent">▸</span>
                 <span>{h}</span>
@@ -138,11 +148,11 @@ export default function CinemaWidget({ data, sources, onChat, chatHistory, isLoa
       )}
 
       {/* Milestones */}
-      {milestones.length > 0 && (
+      {validMilestones.length > 0 && (
         <div>
           <div className="text-dim text-[10px] uppercase tracking-wider mb-1">Milestones</div>
           <div className="flex flex-wrap gap-1">
-            {milestones.map((m, i) => (
+            {validMilestones.map((m, i) => (
               <span key={i} className="text-xs bg-accent/10 text-accent px-2 py-0.5 rounded">
                 {m}
               </span>
@@ -152,17 +162,17 @@ export default function CinemaWidget({ data, sources, onChat, chatHistory, isLoa
       )}
 
       {/* Cast */}
-      {cast.length > 0 && (
+      {validCast.length > 0 && (
         <div>
           <div className="text-dim text-[10px] uppercase tracking-wider mb-1">Cast</div>
           <div className="flex flex-wrap gap-1">
-            {cast.slice(0, 6).map((c, i) => (
+            {validCast.slice(0, 6).map((c, i) => (
               <span key={i} className="text-xs text-text border border-muted px-2 py-0.5 rounded">
                 {c}
               </span>
             ))}
-            {cast.length > 6 && (
-              <span className="text-xs text-dim">+{cast.length - 6} more</span>
+            {validCast.length > 6 && (
+              <span className="text-xs text-dim">+{validCast.length - 6} more</span>
             )}
           </div>
         </div>

@@ -9,21 +9,17 @@ export default function ChatModal({ isOpen, onClose, topic, history = [], onSend
 
   useEffect(() => {
     if (isOpen) {
-      console.log('ChatModal opened, history:', history)
       setMessages(history || [])
     }
   }, [isOpen])
 
   useEffect(() => {
-    console.log('Messages updated:', messages)
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return
 
-    console.log('Sending message:', input)
-    
     const userMsg = { role: 'user', content: input }
     const newMessages = [...messages, userMsg]
     setMessages(newMessages)
@@ -31,7 +27,6 @@ export default function ChatModal({ isOpen, onClose, topic, history = [], onSend
     setIsLoading(true)
 
     try {
-      console.log('Fetching /api/chat...')
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -45,16 +40,12 @@ export default function ChatModal({ isOpen, onClose, topic, history = [], onSend
         }),
       })
 
-      console.log('Chat response status:', res.status)
-      
       if (!res.ok) {
         const errData = await res.json()
         throw new Error(errData.error || `HTTP ${res.status}`)
       }
 
       const data = await res.json()
-      console.log('Chat response data:', data)
-      
       const aiMsg = { role: 'assistant', content: data.content }
       setMessages(prev => [...newMessages, aiMsg])
       if (onSendMessage) {

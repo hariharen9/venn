@@ -80,17 +80,12 @@ export default async function handler(req, res) {
       }),
     })
 
-    console.log('Chat API called:', { topic, message, aiMode, historyLength: history?.length })
-    
     if (!orRes.ok) {
       const errText = await orRes.text()
-      console.log('Chat API error:', errText)
       throw new Error(`OpenRouter ${orRes.status}: ${errText}`)
     }
 
     const data = await orRes.json()
-    console.log('Chat API data:', JSON.stringify(data))
-    
     const response = data.choices?.[0]?.message?.content?.trim() || 'No response from AI.'
 
     return res.status(200).json({
