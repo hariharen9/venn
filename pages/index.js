@@ -3,8 +3,11 @@ import Head from 'next/head'
 import { useRouter } from 'next/router'
 import { useTopics } from '../lib/useTopics'
 import { useSettings } from '../lib/useSettings'
+import { usePackages } from '../lib/usePackages'
 import TopicCard from '../components/TopicCard'
 import AddTopicForm from '../components/AddTopicForm'
+import PackageCard from '../components/PackageCard'
+import AddPackageForm from '../components/AddPackageForm'
 import SettingsPanel from '../components/SettingsPanel'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ToastContainer, { showToast } from '../components/Toast'
@@ -16,10 +19,14 @@ export default function Dashboard() {
   const router = useRouter()
   const { topics, addTopic, removeTopic, setCacheEntry, getCacheEntry } = useTopics()
   const { settings, updateSettings, checkOllamaAndAutoSelect, getActiveModel } = useSettings()
+  const { packages, addPackage, removePackage, setCacheEntry: setPkgCacheEntry, getCacheEntry: getPkgCacheEntry } = usePackages()
   const [loadingIds, setLoadingIds] = useState(new Set())
+  const [pkgLoadingIds, setPkgLoadingIds] = useState(new Set())
   const [showAdd, setShowAdd] = useState(false)
+  const [showAddPackage, setShowAddPackage] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [syncingAll, setSyncingAll] = useState(false)
+  const [syncingAllPkgs, setSyncingAllPkgs] = useState(false)
   const [toastShown, setToastShown] = useState(false)
   const [activeProvider, setActiveProvider] = useState({ provider: 'openrouter', model: 'gemma-4-26b-a4b-it' })
 
@@ -165,8 +172,91 @@ export default function Dashboard() {
     router.push('/login')
   }
 
+  // ── Package tracking ──────────────────────────────────────────────────
+
+  const fetchPackage = useCallback(
+    async (pkg, force = false) => {
+      if (!force) {
+        const entry = getPkgCacheEntry(pkg.id)
+        if (entry && entry.cachedAt && (Date.now() - entry.cachedAt < CACHE_TTL_MS)) {
+          setConfirmModal({
+            isOpen: true,
+            message: `"${pkg.name}" was updated recently. Sync anyway?`,
+            onConfirm: () => {
+              closeConfirm()
+              fetchPackage(pkg, true)
+            },
+          })
+          return
+        }
+      }
+
+      setPkgLoadingIds((prev) => new Set([...prev, pkg.id]))
+      try {
+        const res = await fetch('/api/packages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ platform: pkg.platform, identifier: pkg.identifier }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setPkgCacheEntry(pkg.id, { error: data.error || 'Unknown error' })
+        } else {
+          setPkgCacheEntry(pkg.id, data)
+        }
+      } catch (err) {
+        setPkgCacheEntry(pkg.id, { error: `Network error: ${err.message}` })
+      } finally {
+        setPkgLoadingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(pkg.id)
+          return next
+        })
+      }
+    },
+    [setPkgCacheEntry, getPkgCacheEntry, closeConfirm]
+  )
+
+  const handleSyncAllPkgs = async (force = false) => {
+    if (packages.length === 0) return
+
+    if (!force) {
+      const freshCount = packages.filter((p) => {
+        const entry = getPkgCacheEntry(p.id)
+        return entry && entry.cachedAt && Date.now() - entry.cachedAt < CACHE_TTL_MS
+      }).length
+
+      if (freshCount > 0) {
+        setConfirmModal({
+          isOpen: true,
+          message: `${freshCount} of your packages are still fresh. Sync everything anyway?`,
+          onConfirm: () => {
+            closeConfirm()
+            handleSyncAllPkgs(true)
+          },
+        })
+        return
+      }
+    }
+
+    setSyncingAllPkgs(true)
+    await Promise.all(packages.map((p) => fetchPackage(p, true)))
+    setSyncingAllPkgs(false)
+  }
+
+  const handleAddPackage = async (name, platform, identifier) => {
+    const newId = addPackage(name, platform, identifier)
+    setTimeout(() => {
+      fetchPackage({ id: newId, name, platform, identifier }, true)
+    }, 100)
+  }
+
+  // ── Derived values ────────────────────────────────────────────────────
+
   const totalLoading = loadingIds.size
+  const totalPkgLoading = pkgLoadingIds.size
   const hasTopics = topics.length > 0
+  const hasPackages = packages.length > 0
 
   const providerBadge = activeProvider.provider === 'ollama'
     ? { label: `ollama · ${activeProvider.model}`, color: '#4ade80' }
@@ -196,16 +286,16 @@ export default function Dashboard() {
               </h1>
               {/* Provider badge */}
               <button
-                onClick={() => { setShowSettings(!showSettings); setShowAdd(false) }}
+                onClick={() => { setShowSettings(!showSettings); setShowAdd(false); setShowAddPackage(false) }}
                 className="hidden sm:flex items-center gap-1.5 text-xs border border-muted px-2 py-1 hover:border-accent transition-colors"
                 title="AI settings"
               >
                 <span className="status-dot" style={{ background: providerBadge.color }} />
                 <span className="text-dim">{providerBadge.label}</span>
               </button>
-              {totalLoading > 0 && (
+              {(totalLoading > 0 || totalPkgLoading > 0) && (
                 <span className="text-xs text-accent animate-pulse">
-                  syncing {totalLoading}...
+                  syncing {totalLoading + totalPkgLoading}...
                 </span>
               )}
             </div>
@@ -213,7 +303,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-1.5 sm:gap-2">
               {/* Mobile settings button */}
               <button
-                onClick={() => { setShowSettings(!showSettings); setShowAdd(false) }}
+                onClick={() => { setShowSettings(!showSettings); setShowAdd(false); setShowAddPackage(false) }}
                 className="sm:hidden text-xs text-dim hover:text-accent border border-muted px-2 py-1.5 transition-colors"
               >
                 AI
@@ -230,7 +320,7 @@ export default function Dashboard() {
               )}
 
               <button
-                onClick={() => { setShowAdd(!showAdd); setShowSettings(false) }}
+                onClick={() => { setShowAdd(!showAdd); setShowSettings(false); setShowAddPackage(false) }}
                 className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
                 style={{
                   borderColor: showAdd ? '#e8f429' : '#2a2a2a',
@@ -239,6 +329,19 @@ export default function Dashboard() {
                 }}
               >
                 {showAdd ? '−' : '+'}
+              </button>
+
+              <button
+                onClick={() => { setShowAddPackage(!showAddPackage); setShowAdd(false); setShowSettings(false) }}
+                className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
+                style={{
+                  borderColor: showAddPackage ? '#e8f429' : '#2a2a2a',
+                  color: showAddPackage ? '#e8f429' : '#e8e8e8',
+                  fontFamily: 'var(--font-display)',
+                }}
+                title="Add package to track"
+              >
+                {showAddPackage ? '−' : '+'} PKG
               </button>
 
               <button
@@ -265,7 +368,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Add form */}
+          {/* Add topic form */}
           {showAdd && (
             <div className="mb-6">
               <AddTopicForm
@@ -275,21 +378,40 @@ export default function Dashboard() {
             </div>
           )}
 
+          {/* Add package form */}
+          {showAddPackage && (
+            <div className="mb-6">
+              <AddPackageForm
+                onAdd={handleAddPackage}
+                onClose={() => setShowAddPackage(false)}
+              />
+            </div>
+          )}
+
           {/* Empty state */}
-          {!hasTopics && !showAdd && !showSettings && (
+          {!hasTopics && !hasPackages && !showAdd && !showAddPackage && !showSettings && (
             <div className="flex flex-col items-center justify-center py-20 sm:py-32 text-center px-4">
               <div className="text-4xl text-accent mb-4" style={{ fontFamily: 'var(--font-display)' }}>_</div>
-              <p className="text-text text-sm mb-2">no topics yet</p>
+              <p className="text-text text-sm mb-2">nothing tracked yet</p>
               <p className="text-dim text-xs mb-6 max-w-xs">
-                add anything you want to track — movies, news topics, people, subreddits, stock prices, whatever.
+                add topics you want to track (movies, news, people) or packages to monitor (PyPI, npm, VS Code).
               </p>
-              <button
-                onClick={() => setShowAdd(true)}
-                className="text-sm px-6 py-3 border border-accent text-accent hover:bg-accent hover:text-bg transition-colors rounded"
-                style={{ fontFamily: 'var(--font-display)' }}
-              >
-                + ADD YOUR FIRST TOPIC
-              </button>
+              <div className="flex flex-wrap justify-center gap-3">
+                <button
+                  onClick={() => setShowAdd(true)}
+                  className="text-sm px-6 py-3 border border-accent text-accent hover:bg-accent hover:text-bg transition-colors rounded"
+                  style={{ fontFamily: 'var(--font-display)' }}
+                >
+                  + ADD TOPIC
+                </button>
+                <button
+                  onClick={() => setShowAddPackage(true)}
+                  className="text-sm px-6 py-3 border border-muted text-dim hover:border-accent hover:text-accent transition-colors rounded"
+                  style={{ fontFamily: 'var(--font-display)' }}
+                >
+                  + ADD PACKAGE
+                </button>
+              </div>
             </div>
           )}
 
@@ -317,6 +439,38 @@ export default function Dashboard() {
                 ))}
               </div>
             </>
+          )}
+
+          {/* ── Package Tracker ─────────────────────────────────────────── */}
+          {hasPackages && (
+            <div className="mt-8">
+              <div className="flex items-center gap-3 mb-4 px-2">
+                <span className="text-dim text-xs">
+                  {packages.length} package{packages.length !== 1 ? 's' : ''}
+                </span>
+                <div className="flex-1 border-t border-border" />
+                <button
+                  onClick={() => handleSyncAllPkgs()}
+                  disabled={syncingAllPkgs || totalPkgLoading > 0}
+                  className="text-xs text-dim hover:text-accent border border-muted hover:border-accent px-2 py-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {syncingAllPkgs ? 'syncing...' : 'sync all'}
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 px-2">
+                {packages.map((pkg) => (
+                  <PackageCard
+                    key={pkg.id}
+                    pkg={pkg}
+                    cacheEntry={getPkgCacheEntry(pkg.id)}
+                    onSync={fetchPackage}
+                    onRemove={removePackage}
+                    isLoading={pkgLoadingIds.has(pkg.id)}
+                  />
+                ))}
+              </div>
+            </div>
           )}
         </main>
 
