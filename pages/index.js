@@ -11,6 +11,7 @@ import AddPackageForm from '../components/AddPackageForm'
 import SettingsPanel from '../components/SettingsPanel'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ToastContainer, { showToast } from '../components/Toast'
+import CloudSyncIndicator from '../components/CloudSyncIndicator'
 
 const API_ENDPOINT = '/api/refresh'
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000
@@ -281,10 +282,12 @@ export default function Dashboard() {
         <header className="border-b border-border sticky top-0 bg-bg z-10">
           <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-4">
-              <h1 className="text-accent text-base sm:text-lg tracking-widest" style={{ fontFamily: 'var(--font-display)' }}>
-                VENN
-              </h1>
-              {/* Provider badge */}
+              <div className="flex flex-col items-start gap-1 mt-0.5">
+                <h1 className="text-accent text-base sm:text-lg tracking-widest leading-none" style={{ fontFamily: 'var(--font-display)' }}>
+                  VENN
+                </h1>
+                <CloudSyncIndicator />
+              </div>
               <button
                 onClick={() => { setShowSettings(!showSettings); setShowAdd(false); setShowAddPackage(false) }}
                 className="hidden sm:flex items-center gap-1.5 text-xs border border-muted px-2 py-1 hover:border-accent transition-colors"
