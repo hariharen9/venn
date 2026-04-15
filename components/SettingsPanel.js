@@ -12,7 +12,8 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
     const data = {
       settings: localStorage.getItem('venn_settings'),
       topics: localStorage.getItem('venn_topics'),
-      packages: localStorage.getItem('venn_packages')
+      packages: localStorage.getItem('venn_packages'),
+      feeds: localStorage.getItem('venn_feeds')
     }
     navigator.clipboard.writeText(JSON.stringify(data))
     alert('Dashboard data copied to clipboard!\n\nOpen Venn on your destination site (or phone), open settings, and click IMPORT DATA to paste this.')
@@ -26,6 +27,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
       if (data.settings) localStorage.setItem('venn_settings', data.settings)
       if (data.topics) localStorage.setItem('venn_topics', data.topics)
       if (data.packages) localStorage.setItem('venn_packages', data.packages)
+      if (data.feeds) localStorage.setItem('venn_feeds', data.feeds)
 
       // Notify the dashboard to read the new data and simultaneously push it to the remote cloud
       window.dispatchEvent(new Event('venn_sync_updated'))

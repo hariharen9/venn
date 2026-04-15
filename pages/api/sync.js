@@ -16,11 +16,12 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const { settings, topics, packages } = req.body
+      const { settings, topics, packages, feeds } = req.body
       const payload = {
         settings,
         topics,
         packages,
+        feeds,
         updatedAt: Date.now()
       }
       await store.setJSON(key, payload)

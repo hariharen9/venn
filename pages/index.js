@@ -6,10 +6,13 @@ import { useRouter } from 'next/router'
 import { useTopics } from '../lib/useTopics'
 import { useSettings } from '../lib/useSettings'
 import { usePackages } from '../lib/usePackages'
+import { useFeeds } from '../lib/useFeeds'
 import TopicCard from '../components/TopicCard'
 import AddTopicForm from '../components/AddTopicForm'
 import PackageCard from '../components/PackageCard'
 import AddPackageForm from '../components/AddPackageForm'
+import FeedCard from '../components/FeedCard'
+import AddFeedForm from '../components/AddFeedForm'
 import SettingsPanel from '../components/SettingsPanel'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ToastContainer, { showToast } from '../components/Toast'
@@ -25,13 +28,17 @@ export default function Dashboard() {
   const { topics, addTopic, removeTopic, reorderTopics, setCacheEntry, getCacheEntry } = useTopics()
   const { settings, updateSettings, checkOllamaAndAutoSelect, getActiveModel } = useSettings()
   const { packages, addPackage, removePackage, reorderPackages, setCacheEntry: setPkgCacheEntry, getCacheEntry: getPkgCacheEntry } = usePackages()
+  const { feeds, addFeed, removeFeed, reorderFeeds, setCacheEntry: setFeedCacheEntry, getCacheEntry: getFeedCacheEntry } = useFeeds()
   const [loadingIds, setLoadingIds] = useState(new Set())
   const [pkgLoadingIds, setPkgLoadingIds] = useState(new Set())
+  const [feedLoadingIds, setFeedLoadingIds] = useState(new Set())
   const [showAdd, setShowAdd] = useState(false)
   const [showAddPackage, setShowAddPackage] = useState(false)
+  const [showAddFeed, setShowAddFeed] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [syncingAll, setSyncingAll] = useState(false)
   const [syncingAllPkgs, setSyncingAllPkgs] = useState(false)
+  const [syncingAllFeeds, setSyncingAllFeeds] = useState(false)
   const [toastShown, setToastShown] = useState(false)
   const [activeProvider, setActiveProvider] = useState({ provider: 'openrouter', model: 'gemma-4-26b-a4b-it' })
 
@@ -48,6 +55,11 @@ export default function Dashboard() {
   const handleDragEndPackages = (event) => {
     const { active, over } = event
     if (over && active.id !== over.id) reorderPackages(active.id, over.id)
+  }
+
+  const handleDragEndFeeds = (event) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) reorderFeeds(active.id, over.id)
   }
 
   useEffect(() => {
@@ -271,12 +283,93 @@ export default function Dashboard() {
     }, 100)
   }
 
+  // ── Feed tracking ──────────────────────────────────────────────────
+
+  const fetchFeed = useCallback(
+    async (feed, force = false) => {
+      if (!force) {
+        const entry = getFeedCacheEntry(feed.id)
+        if (entry && entry.cachedAt && (Date.now() - entry.cachedAt < CACHE_TTL_MS)) {
+          setConfirmModal({
+            isOpen: true,
+            message: `"${feed.name}" was updated recently. Sync anyway?`,
+            onConfirm: () => {
+              closeConfirm()
+              fetchFeed(feed, true)
+            },
+          })
+          return
+        }
+      }
+
+      setFeedLoadingIds((prev) => new Set([...prev, feed.id]))
+      try {
+        const res = await fetch('/api/rss', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url: feed.url }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setFeedCacheEntry(feed.id, { error: data.error || 'Unknown error' })
+        } else {
+          setFeedCacheEntry(feed.id, data)
+        }
+      } catch (err) {
+        setFeedCacheEntry(feed.id, { error: `Network error: ${err.message}` })
+      } finally {
+        setFeedLoadingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(feed.id)
+          return next
+        })
+      }
+    },
+    [setFeedCacheEntry, getFeedCacheEntry, closeConfirm]
+  )
+
+  const handleSyncAllFeeds = async (force = false) => {
+    if (feeds.length === 0) return
+
+    if (!force) {
+      const freshCount = feeds.filter((f) => {
+        const entry = getFeedCacheEntry(f.id)
+        return entry && entry.cachedAt && Date.now() - entry.cachedAt < CACHE_TTL_MS
+      }).length
+
+      if (freshCount > 0) {
+        setConfirmModal({
+          isOpen: true,
+          message: `${freshCount} of your feeds are still fresh. Sync everything anyway?`,
+          onConfirm: () => {
+            closeConfirm()
+            handleSyncAllFeeds(true)
+          },
+        })
+        return
+      }
+    }
+
+    setSyncingAllFeeds(true)
+    await Promise.all(feeds.map((f) => fetchFeed(f, true)))
+    setSyncingAllFeeds(false)
+  }
+
+  const handleAddFeed = async (name, url) => {
+    const newId = addFeed(name, url)
+    setTimeout(() => {
+      fetchFeed({ id: newId, name, url }, true)
+    }, 100)
+  }
+
   // ── Derived values ────────────────────────────────────────────────────
 
   const totalLoading = loadingIds.size
   const totalPkgLoading = pkgLoadingIds.size
+  const totalFeedLoading = feedLoadingIds.size
   const hasTopics = topics.length > 0
   const hasPackages = packages.length > 0
+  const hasFeeds = feeds.length > 0
 
   const providerBadge = activeProvider.provider === 'ollama'
     ? { label: `ollama · ${activeProvider.model}`, color: '#4ade80' }
@@ -308,7 +401,7 @@ export default function Dashboard() {
                 <CloudSyncIndicator />
               </div>
               <button
-                onClick={() => { setShowSettings(!showSettings); setShowAdd(false); setShowAddPackage(false) }}
+                onClick={() => { setShowSettings(!showSettings); setShowAdd(false); setShowAddPackage(false); setShowAddFeed(false) }}
                 className="hidden sm:flex items-center gap-2 text-xs border border-muted px-2 py-1.5 hover:border-accent transition-colors"
                 title="Dashboard Settings"
               >
@@ -318,9 +411,9 @@ export default function Dashboard() {
                 </svg>
                 <span className="text-dim">Settings</span>
               </button>
-              {(totalLoading > 0 || totalPkgLoading > 0) && (
+              {(totalLoading > 0 || totalPkgLoading > 0 || totalFeedLoading > 0) && (
                 <span className="text-xs text-accent animate-pulse">
-                  syncing {totalLoading + totalPkgLoading}...
+                  syncing {totalLoading + totalPkgLoading + totalFeedLoading}...
                 </span>
               )}
             </div>
@@ -328,7 +421,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-1.5 sm:gap-2">
               {/* Mobile settings button */}
               <button
-                onClick={() => { setShowSettings(!showSettings); setShowAdd(false); setShowAddPackage(false) }}
+                onClick={() => { setShowSettings(!showSettings); setShowAdd(false); setShowAddPackage(false); setShowAddFeed(false) }}
                 className="sm:hidden text-xs text-dim hover:text-accent border border-muted p-2 h-8 w-8 flex items-center justify-center transition-colors"
                 title="Settings"
               >
@@ -349,7 +442,7 @@ export default function Dashboard() {
               )}
 
               <button
-                onClick={() => { setShowAdd(!showAdd); setShowSettings(false); setShowAddPackage(false) }}
+                onClick={() => { setShowAdd(!showAdd); setShowSettings(false); setShowAddPackage(false); setShowAddFeed(false) }}
                 className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
                 style={{
                   borderColor: showAdd ? '#e8f429' : '#2a2a2a',
@@ -361,7 +454,7 @@ export default function Dashboard() {
               </button>
 
               <button
-                onClick={() => { setShowAddPackage(!showAddPackage); setShowAdd(false); setShowSettings(false) }}
+                onClick={() => { setShowAddPackage(!showAddPackage); setShowAdd(false); setShowSettings(false); setShowAddFeed(false) }}
                 className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
                 style={{
                   borderColor: showAddPackage ? '#e8f429' : '#2a2a2a',
@@ -371,6 +464,19 @@ export default function Dashboard() {
                 title="Add package to track"
               >
                 {showAddPackage ? '−' : '+'} PKG
+              </button>
+
+              <button
+                onClick={() => { setShowAddFeed(!showAddFeed); setShowAdd(false); setShowAddPackage(false); setShowSettings(false) }}
+                className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
+                style={{
+                  borderColor: showAddFeed ? '#e8f429' : '#2a2a2a',
+                  color: showAddFeed ? '#e8f429' : '#e8e8e8',
+                  fontFamily: 'var(--font-display)',
+                }}
+                title="Add RSS feed to track"
+              >
+                {showAddFeed ? '−' : '+'} FEED
               </button>
 
               <button
@@ -419,13 +525,23 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Add feed form */}
+            {showAddFeed && (
+              <div className="mb-6">
+                <AddFeedForm
+                  onAdd={handleAddFeed}
+                  onClose={() => setShowAddFeed(false)}
+                />
+              </div>
+            )}
+
             {/* Empty state */}
-            {!hasTopics && !hasPackages && !showAdd && !showAddPackage && !showSettings && (
+            {!hasTopics && !hasPackages && !hasFeeds && !showAdd && !showAddPackage && !showAddFeed && !showSettings && (
               <div className="flex flex-col items-center justify-center py-20 sm:py-32 text-center px-4">
                 <div className="text-4xl text-accent mb-4" style={{ fontFamily: 'var(--font-display)' }}>_</div>
                 <p className="text-text text-sm mb-2">nothing tracked yet</p>
                 <p className="text-dim text-xs mb-6 max-w-xs">
-                  add topics you want to track (movies, news, people) or packages to monitor (PyPI, npm, VS Code).
+                  add topics you want to track (movies, news, people), packages to monitor (PyPI, npm, VS Code), or RSS feeds.
                 </p>
                 <div className="flex flex-wrap justify-center gap-3">
                   <button
@@ -441,6 +557,13 @@ export default function Dashboard() {
                     style={{ fontFamily: 'var(--font-display)' }}
                   >
                     + ADD PACKAGE
+                  </button>
+                  <button
+                    onClick={() => setShowAddFeed(true)}
+                    className="text-sm px-6 py-3 border border-muted text-dim hover:border-accent hover:text-accent transition-colors rounded"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    + ADD FEED
                   </button>
                 </div>
               </div>
@@ -502,6 +625,42 @@ export default function Dashboard() {
                           onSync={fetchPackage}
                           onRemove={removePackage}
                           isLoading={pkgLoadingIds.has(pkg.id)}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
+            )}
+
+            {/* ── Feeds Tracker ─────────────────────────────────────────── */}
+            {hasFeeds && (
+              <div className="mt-8">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndFeeds}>
+                  <div className="flex items-center gap-3 mb-4 px-2">
+                    <span className="text-dim text-xs">
+                      {feeds.length} feed{feeds.length !== 1 ? 's' : ''}
+                    </span>
+                    <div className="flex-1 border-t border-border" />
+                    <button
+                      onClick={() => handleSyncAllFeeds()}
+                      disabled={syncingAllFeeds || totalFeedLoading > 0}
+                      className="text-xs text-dim hover:text-accent border border-muted hover:border-accent px-2 py-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {syncingAllFeeds ? 'syncing...' : 'sync all'}
+                    </button>
+                  </div>
+
+                  <SortableContext items={feeds.map(f => f.id)} strategy={rectSortingStrategy}>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 px-2">
+                      {feeds.map((feed) => (
+                        <FeedCard
+                          key={feed.id}
+                          feed={feed}
+                          cacheEntry={getFeedCacheEntry(feed.id)}
+                          onSync={fetchFeed}
+                          onRemove={removeFeed}
+                          isLoading={feedLoadingIds.has(feed.id)}
                         />
                       ))}
                     </div>
