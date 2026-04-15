@@ -77,7 +77,7 @@ export default function TopicCard({ topic, cacheEntry, onSync, onRemove, isLoadi
     <>
       <div
         ref={setNodeRef}
-        className={`card-hover relative border bg-surface rounded-none overflow-hidden transition-[border-color,opacity] duration-300 ${isLoading ? 'opacity-70' : 'opacity-100'} ${isDragging ? 'shadow-2xl border-accent' : ''}`}
+        className={`card-hover relative border bg-surface rounded-none overflow-hidden transition-[border-color,opacity] duration-300 flex-1 min-w-full md:min-w-[45%] lg:min-w-[30%] ${isLoading ? 'opacity-70' : 'opacity-100'} ${isDragging ? 'shadow-2xl border-accent' : ''}`}
         style={{
           fontFamily: 'var(--font-mono)',
           borderColor: isDragging ? '#e8f429' : isLoading ? '#e8f42940' : '#1e1e1e',

@@ -375,6 +375,7 @@ export default function Dashboard() {
     ? { label: `ollama · ${activeProvider.model}`, color: '#4ade80' }
     : { label: 'openrouter · gemma3', color: '#e8f429' }
 
+
   return (
     <>
       <Head>
@@ -580,7 +581,7 @@ export default function Dashboard() {
                 </div>
 
                 <SortableContext items={topics.map((t) => t.id)} strategy={rectSortingStrategy}>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 px-2">
+                  <div className="flex flex-wrap gap-3 px-2">
                     {topics.map((topic) => (
                       <TopicCard
                         key={topic.id}
