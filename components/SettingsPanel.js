@@ -372,6 +372,61 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
           </p>
         </div>
 
+        {/* Reddit Settings */}
+        <div className="border-t border-border pt-4 space-y-4">
+          <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>REDDIT_CONFIG</p>
+
+          <div className="space-y-3">
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-dim text-xs">show media thumbnails</span>
+              <input
+                type="checkbox"
+                checked={settings.redditThumbnails !== false}
+                onChange={(e) => onUpdate({ redditThumbnails: e.target.checked })}
+                className="accent-accent"
+              />
+            </label>
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-dim text-xs">show NSFW content</span>
+              <input
+                type="checkbox"
+                checked={settings.redditNsfw === true}
+                onChange={(e) => onUpdate({ redditNsfw: e.target.checked })}
+                className="accent-accent"
+              />
+            </label>
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-dim text-xs">compact mode (dense list)</span>
+              <input
+                type="checkbox"
+                checked={settings.redditCompact === true}
+                onChange={(e) => onUpdate({ redditCompact: e.target.checked })}
+                className="accent-accent"
+              />
+            </label>
+
+            <div>
+              <span className="text-dim text-xs block mb-2">posts per subreddit</span>
+              <div className="flex gap-2">
+                {[5, 10, 15, 25].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => onUpdate({ redditPostCount: n })}
+                    className="flex-1 py-1.5 text-[10px] border transition-colors rounded"
+                    style={{
+                      borderColor: (settings.redditPostCount || 15) === n ? '#e8f429' : '#1e1e1e',
+                      color: (settings.redditPostCount || 15) === n ? '#e8f429' : '#666',
+                      background: (settings.redditPostCount || 15) === n ? 'rgba(232,244,41,0.05)' : 'transparent',
+                    }}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Data Management */}
         <div className="border-t border-border pt-4 mt-4 space-y-4 pb-2">
           <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>DATA_MANAGEMENT</p>

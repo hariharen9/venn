@@ -7,12 +7,15 @@ import { useTopics } from '../lib/useTopics'
 import { useSettings } from '../lib/useSettings'
 import { usePackages } from '../lib/usePackages'
 import { useFeeds } from '../lib/useFeeds'
+import { useSubreddits } from '../lib/useSubreddits'
 import TopicCard from '../components/TopicCard'
 import AddTopicForm from '../components/AddTopicForm'
 import PackageCard from '../components/PackageCard'
 import AddPackageForm from '../components/AddPackageForm'
 import FeedCard from '../components/FeedCard'
 import AddFeedForm from '../components/AddFeedForm'
+import SubredditCard from '../components/SubredditCard'
+import AddSubredditForm from '../components/AddSubredditForm'
 import SettingsPanel from '../components/SettingsPanel'
 import ConfirmDialog from '../components/ConfirmDialog'
 import ToastContainer, { showToast } from '../components/Toast'
@@ -29,16 +32,20 @@ export default function Dashboard() {
   const { settings, updateSettings, checkOllamaAndAutoSelect, getActiveModel } = useSettings()
   const { packages, addPackage, removePackage, reorderPackages, setCacheEntry: setPkgCacheEntry, getCacheEntry: getPkgCacheEntry } = usePackages()
   const { feeds, addFeed, removeFeed, reorderFeeds, setCacheEntry: setFeedCacheEntry, getCacheEntry: getFeedCacheEntry } = useFeeds()
+  const { subreddits, addSubreddit, removeSubreddit, updateSubredditConfig, reorderSubreddits, setCacheEntry: setSubCacheEntry, getCacheEntry: getSubCacheEntry, isCacheFresh: isSubCacheFresh } = useSubreddits()
   const [loadingIds, setLoadingIds] = useState(new Set())
   const [pkgLoadingIds, setPkgLoadingIds] = useState(new Set())
   const [feedLoadingIds, setFeedLoadingIds] = useState(new Set())
+  const [subLoadingIds, setSubLoadingIds] = useState(new Set())
   const [showAdd, setShowAdd] = useState(false)
   const [showAddPackage, setShowAddPackage] = useState(false)
   const [showAddFeed, setShowAddFeed] = useState(false)
+  const [showAddSubreddit, setShowAddSubreddit] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [syncingAll, setSyncingAll] = useState(false)
   const [syncingAllPkgs, setSyncingAllPkgs] = useState(false)
   const [syncingAllFeeds, setSyncingAllFeeds] = useState(false)
+  const [syncingAllSubs, setSyncingAllSubs] = useState(false)
   const [toastShown, setToastShown] = useState(false)
   const [activeProvider, setActiveProvider] = useState({ provider: 'openrouter', model: 'gemma-4-26b-a4b-it' })
 
@@ -60,6 +67,18 @@ export default function Dashboard() {
   const handleDragEndFeeds = (event) => {
     const { active, over } = event
     if (over && active.id !== over.id) reorderFeeds(active.id, over.id)
+  }
+
+  const handleDragEndSubs = (event) => {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      const oldIndex = subreddits.findIndex(s => s.id === active.id)
+      const newIndex = subreddits.findIndex(s => s.id === over.id)
+      const newOrder = [...subreddits]
+      const [moved] = newOrder.splice(oldIndex, 1)
+      newOrder.splice(newIndex, 0, moved)
+      reorderSubreddits(newOrder)
+    }
   }
 
   useEffect(() => {
@@ -362,14 +381,99 @@ export default function Dashboard() {
     }, 100)
   }
 
+  // ── Subreddit tracking ──────────────────────────────────────────────
+
+  const REDDIT_CACHE_TTL = 60 * 60 * 1000 // 1 hour
+
+  const fetchSubreddit = useCallback(
+    async (sub, force = false) => {
+      if (!force) {
+        const entry = getSubCacheEntry(sub.id)
+        if (entry && entry.cachedAt && (Date.now() - entry.cachedAt < REDDIT_CACHE_TTL)) {
+          setConfirmModal({
+            isOpen: true,
+            message: `r/${sub.name} was updated recently. Sync anyway?`,
+            onConfirm: () => {
+              closeConfirm()
+              fetchSubreddit(sub, true)
+            },
+          })
+          return
+        }
+      }
+
+      setSubLoadingIds((prev) => new Set([...prev, sub.id]))
+      try {
+        const res = await fetch('/api/reddit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subreddit: sub.name,
+            sort: sub.sort || 'hot',
+            t: sub.timeRange || 'week',
+            limit: settings.redditPostCount || 15,
+          }),
+        })
+        const data = await res.json()
+        if (!res.ok) {
+          setSubCacheEntry(sub.id, { error: data.error || 'Unknown error' })
+        } else {
+          setSubCacheEntry(sub.id, data)
+        }
+      } catch (err) {
+        setSubCacheEntry(sub.id, { error: `Network error: ${err.message}` })
+      } finally {
+        setSubLoadingIds((prev) => {
+          const next = new Set(prev)
+          next.delete(sub.id)
+          return next
+        })
+      }
+    },
+    [setSubCacheEntry, getSubCacheEntry, closeConfirm, settings]
+  )
+
+  const handleSyncAllSubs = async (force = false) => {
+    if (subreddits.length === 0) return
+
+    if (!force) {
+      const freshCount = subreddits.filter((s) => isSubCacheFresh(s.id)).length
+
+      if (freshCount > 0) {
+        setConfirmModal({
+          isOpen: true,
+          message: `${freshCount} of your subreddits are still fresh. Sync everything anyway?`,
+          onConfirm: () => {
+            closeConfirm()
+            handleSyncAllSubs(true)
+          },
+        })
+        return
+      }
+    }
+
+    setSyncingAllSubs(true)
+    await Promise.all(subreddits.map((s) => fetchSubreddit(s, true)))
+    setSyncingAllSubs(false)
+  }
+
+  const handleAddSubreddit = async (name, sort, timeRange) => {
+    const newSub = addSubreddit(name, sort, timeRange)
+    setTimeout(() => {
+      fetchSubreddit(newSub, true)
+    }, 100)
+  }
+
   // ── Derived values ────────────────────────────────────────────────────
 
   const totalLoading = loadingIds.size
   const totalPkgLoading = pkgLoadingIds.size
   const totalFeedLoading = feedLoadingIds.size
+  const totalSubLoading = subLoadingIds.size
   const hasTopics = topics.length > 0
   const hasPackages = packages.length > 0
   const hasFeeds = feeds.length > 0
+  const hasSubreddits = subreddits.length > 0
 
   const providerBadge = activeProvider.provider === 'ollama'
     ? { label: `ollama · ${activeProvider.model}`, color: '#4ade80' }
@@ -402,7 +506,7 @@ export default function Dashboard() {
                 <CloudSyncIndicator />
               </div>
               <button
-                onClick={() => { setShowSettings(!showSettings); setShowAdd(false); setShowAddPackage(false); setShowAddFeed(false) }}
+                onClick={() => { setShowSettings(!showSettings); setShowAdd(false); setShowAddPackage(false); setShowAddFeed(false); setShowAddSubreddit(false) }}
                 className="hidden sm:flex items-center gap-2 text-xs border border-muted px-2 py-1.5 hover:border-accent transition-colors"
                 title="Dashboard Settings"
               >
@@ -412,9 +516,9 @@ export default function Dashboard() {
                 </svg>
                 <span className="text-dim">Settings</span>
               </button>
-              {(totalLoading > 0 || totalPkgLoading > 0 || totalFeedLoading > 0) && (
+              {(totalLoading > 0 || totalPkgLoading > 0 || totalFeedLoading > 0 || totalSubLoading > 0) && (
                 <span className="text-xs text-accent animate-pulse">
-                  syncing {totalLoading + totalPkgLoading + totalFeedLoading}...
+                  syncing {totalLoading + totalPkgLoading + totalFeedLoading + totalSubLoading}...
                 </span>
               )}
             </div>
@@ -422,7 +526,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-1.5 sm:gap-2">
               {/* Mobile settings button */}
               <button
-                onClick={() => { setShowSettings(!showSettings); setShowAdd(false); setShowAddPackage(false); setShowAddFeed(false) }}
+                onClick={() => { setShowSettings(!showSettings); setShowAdd(false); setShowAddPackage(false); setShowAddFeed(false); setShowAddSubreddit(false) }}
                 className="sm:hidden text-xs text-dim hover:text-accent border border-muted p-2 h-8 w-8 flex items-center justify-center transition-colors"
                 title="Settings"
               >
@@ -443,7 +547,7 @@ export default function Dashboard() {
               )}
 
               <button
-                onClick={() => { setShowAdd(!showAdd); setShowSettings(false); setShowAddPackage(false); setShowAddFeed(false) }}
+                onClick={() => { setShowAdd(!showAdd); setShowSettings(false); setShowAddPackage(false); setShowAddFeed(false); setShowAddSubreddit(false) }}
                 className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
                 style={{
                   borderColor: showAdd ? '#e8f429' : '#2a2a2a',
@@ -455,7 +559,7 @@ export default function Dashboard() {
               </button>
 
               <button
-                onClick={() => { setShowAddPackage(!showAddPackage); setShowAdd(false); setShowSettings(false); setShowAddFeed(false) }}
+                onClick={() => { setShowAddPackage(!showAddPackage); setShowAdd(false); setShowSettings(false); setShowAddFeed(false); setShowAddSubreddit(false) }}
                 className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
                 style={{
                   borderColor: showAddPackage ? '#e8f429' : '#2a2a2a',
@@ -468,7 +572,7 @@ export default function Dashboard() {
               </button>
 
               <button
-                onClick={() => { setShowAddFeed(!showAddFeed); setShowAdd(false); setShowAddPackage(false); setShowSettings(false) }}
+                onClick={() => { setShowAddFeed(!showAddFeed); setShowAdd(false); setShowAddPackage(false); setShowSettings(false); setShowAddSubreddit(false) }}
                 className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
                 style={{
                   borderColor: showAddFeed ? '#e8f429' : '#2a2a2a',
@@ -478,6 +582,19 @@ export default function Dashboard() {
                 title="Add RSS feed to track"
               >
                 {showAddFeed ? '−' : '+'} FEED
+              </button>
+
+              <button
+                onClick={() => { setShowAddSubreddit(!showAddSubreddit); setShowAdd(false); setShowAddPackage(false); setShowAddFeed(false); setShowSettings(false) }}
+                className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
+                style={{
+                  borderColor: showAddSubreddit ? '#e8f429' : '#2a2a2a',
+                  color: showAddSubreddit ? '#e8f429' : '#e8e8e8',
+                  fontFamily: 'var(--font-display)',
+                }}
+                title="Add subreddit to track"
+              >
+                {showAddSubreddit ? '−' : '+'} SUB
               </button>
 
               <button
@@ -536,8 +653,18 @@ export default function Dashboard() {
               </div>
             )}
 
+            {/* Add subreddit form */}
+            {showAddSubreddit && (
+              <div className="mb-6">
+                <AddSubredditForm
+                  onAdd={handleAddSubreddit}
+                  onClose={() => setShowAddSubreddit(false)}
+                />
+              </div>
+            )}
+
             {/* Empty state */}
-            {!hasTopics && !hasPackages && !hasFeeds && !showAdd && !showAddPackage && !showAddFeed && !showSettings && (
+            {!hasTopics && !hasPackages && !hasFeeds && !hasSubreddits && !showAdd && !showAddPackage && !showAddFeed && !showAddSubreddit && !showSettings && (
               <div className="flex flex-col items-center justify-center py-20 sm:py-32 text-center px-4">
                 <div className="text-4xl text-accent mb-4" style={{ fontFamily: 'var(--font-display)' }}>_</div>
                 <p className="text-text text-sm mb-2">nothing tracked yet</p>
@@ -565,6 +692,13 @@ export default function Dashboard() {
                     style={{ fontFamily: 'var(--font-display)' }}
                   >
                     + ADD FEED
+                  </button>
+                  <button
+                    onClick={() => setShowAddSubreddit(true)}
+                    className="text-sm px-6 py-3 border border-orange-400/50 text-orange-400/70 hover:border-orange-400 hover:text-orange-400 transition-colors rounded"
+                    style={{ fontFamily: 'var(--font-display)' }}
+                  >
+                    + ADD SUBREDDIT
                   </button>
                 </div>
               </div>
@@ -596,6 +730,44 @@ export default function Dashboard() {
                   </div>
                 </SortableContext>
               </DndContext>
+            )}
+
+            {/* ── Reddit Tracker ─────────────────────────────────────────── */}
+            {hasSubreddits && (
+              <div className="mt-8">
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndSubs}>
+                  <div className="flex items-center gap-3 mb-4 px-2">
+                    <span className="text-dim text-xs">
+                      {subreddits.length} subreddit{subreddits.length !== 1 ? 's' : ''}
+                    </span>
+                    <div className="flex-1 border-t border-border" />
+                    <button
+                      onClick={() => handleSyncAllSubs()}
+                      disabled={syncingAllSubs || totalSubLoading > 0}
+                      className="text-xs text-dim hover:text-accent border border-muted hover:border-accent px-2 py-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      {syncingAllSubs ? 'syncing...' : 'sync all'}
+                    </button>
+                  </div>
+
+                  <SortableContext items={subreddits.map(s => s.id)} strategy={rectSortingStrategy}>
+                    <div className="flex flex-wrap gap-3 px-2">
+                      {subreddits.map((sub) => (
+                        <SubredditCard
+                          key={sub.id}
+                          subreddit={sub}
+                          cacheEntry={getSubCacheEntry(sub.id)}
+                          onSync={fetchSubreddit}
+                          onRemove={removeSubreddit}
+                          onUpdateConfig={updateSubredditConfig}
+                          isLoading={subLoadingIds.has(sub.id)}
+                          settings={settings}
+                        />
+                      ))}
+                    </div>
+                  </SortableContext>
+                </DndContext>
+              </div>
             )}
 
             {/* ── Package Tracker ─────────────────────────────────────────── */}

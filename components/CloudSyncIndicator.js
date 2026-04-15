@@ -22,6 +22,7 @@ export default function CloudSyncIndicator() {
             if (json.data.topics) localStorage.setItem('venn_topics', JSON.stringify(json.data.topics))
             if (json.data.packages) localStorage.setItem('venn_packages', JSON.stringify(json.data.packages))
             if (json.data.feeds) localStorage.setItem('venn_feeds', JSON.stringify(json.data.feeds))
+            if (json.data.subreddits) localStorage.setItem('venn_subreddits', JSON.stringify(json.data.subreddits))
             localStorage.setItem('venn_sync_time', cloudTime.toString())
 
             // Force all UI hooks to reload from localStorage
@@ -29,7 +30,7 @@ export default function CloudSyncIndicator() {
           }
         } else {
           // If cloud data is completely empty, but we have local data, force an initial backup!
-          const hasLocalData = localStorage.getItem('venn_topics') || localStorage.getItem('venn_packages') || localStorage.getItem('venn_feeds')
+          const hasLocalData = localStorage.getItem('venn_topics') || localStorage.getItem('venn_packages') || localStorage.getItem('venn_feeds') || localStorage.getItem('venn_subreddits')
           if (hasLocalData) {
             window.dispatchEvent(new Event('venn_needs_sync'))
           }
@@ -52,11 +53,12 @@ export default function CloudSyncIndicator() {
         const topics = JSON.parse(localStorage.getItem('venn_topics') || '[]')
         const pkgs = JSON.parse(localStorage.getItem('venn_packages') || '[]')
         const feeds = JSON.parse(localStorage.getItem('venn_feeds') || '[]')
+        const subs = JSON.parse(localStorage.getItem('venn_subreddits') || '[]')
 
         const res = await fetch('/api/sync', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ settings, topics, packages: pkgs, feeds })
+          body: JSON.stringify({ settings, topics, packages: pkgs, feeds, subreddits: subs })
         })
         const json = await res.json()
         if (json.success && json.timestamp) {
