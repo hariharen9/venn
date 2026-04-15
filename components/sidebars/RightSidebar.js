@@ -1,6 +1,6 @@
 import WorldClock from './WorldClock'
-import MiniCalendar from './MiniCalendar'
 import GithubWidget from './GithubWidget'
+import SpaceWatch from './SpaceWatch'
 
 export default function RightSidebar() {
   return (
@@ -10,7 +10,7 @@ export default function RightSidebar() {
     >
        <WorldClock />
        <GithubWidget username="hariharen9" />
-       <MiniCalendar />
+       <SpaceWatch />
     </aside>
   )
 }
