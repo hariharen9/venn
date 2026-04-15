@@ -72,7 +72,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { subreddit, sort = 'hot', t = 'week', limit = 15 } = req.body || {}
+  const { subreddit, sort = 'hot', t = 'week', limit = 15, action = 'listing', query = '' } = req.body || {}
 
   if (!subreddit) {
     return res.status(400).json({ error: 'subreddit is required' })
@@ -84,15 +84,8 @@ export default async function handler(req, res) {
   try {
     const token = await getAccessToken()
 
-    // Fetch posts and subreddit info in parallel
-    const sortParam = sort === 'top' ? `/${sort}?t=${t}&limit=${limit}` : `/${sort}?limit=${limit}`
-    const [listing, about] = await Promise.all([
-      redditGet(`/r/${subName}${sortParam}`, token),
-      redditGet(`/r/${subName}/about`, token),
-    ])
-
-    // Extract and normalize posts
-    const posts = (listing.data?.children || []).map(child => {
+    // Helper to normalize posts
+    const normalizePosts = (children) => (children || []).map(child => {
       const d = child.data
       return {
         id: d.id,
@@ -105,7 +98,7 @@ export default async function handler(req, res) {
         permalink: `https://reddit.com${d.permalink}`,
         url: d.url,
         domain: d.domain,
-        selftext: d.selftext ? d.selftext.slice(0, 300) : '',
+        selftext: d.selftext ? d.selftext.slice(0, 1500) : '',
         thumbnail: d.thumbnail && !['self', 'default', 'nsfw', 'spoiler', 'image', ''].includes(d.thumbnail) ? d.thumbnail : null,
         flair: d.link_flair_text || null,
         flairColor: d.link_flair_background_color || null,
@@ -117,6 +110,28 @@ export default async function handler(req, res) {
         totalAwards: d.total_awards_received || 0,
       }
     })
+
+    // ── Search Mode ──
+    if (action === 'search' && query) {
+      const searchResults = await redditGet(
+        `/r/${subName}/search?q=${encodeURIComponent(query)}&restrict_sr=on&sort=relevance&limit=${limit}`,
+        token
+      )
+      return res.status(200).json({
+        posts: normalizePosts(searchResults.data?.children),
+        searchQuery: query,
+        fetchedAt: new Date().toISOString(),
+      })
+    }
+
+    // ── Listing Mode ──
+    const sortParam = sort === 'top' ? `/${sort}?t=${t}&limit=${limit}` : `/${sort}?limit=${limit}`
+    const [listing, about] = await Promise.all([
+      redditGet(`/r/${subName}${sortParam}`, token),
+      redditGet(`/r/${subName}/about`, token),
+    ])
+
+    const posts = normalizePosts(listing.data?.children)
 
     // Extract subreddit metadata
     const subData = about.data || {}

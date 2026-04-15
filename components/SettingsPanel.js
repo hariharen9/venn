@@ -424,6 +424,27 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
                 ))}
               </div>
             </div>
+
+            <div>
+              <span className="text-dim text-xs block mb-2">keyword alerts</span>
+              <input
+                type="text"
+                value={(settings.redditKeywords || []).join(', ')}
+                onChange={(e) => {
+                  const keywords = e.target.value
+                    .split(',')
+                    .map(k => k.trim())
+                    .filter(k => k.length > 0)
+                  onUpdate({ redditKeywords: keywords })
+                }}
+                placeholder="e.g. layoffs, launch, release, breaking"
+                className="w-full bg-surface border border-muted px-3 py-2 text-xs outline-none focus:border-accent text-text rounded"
+                style={{ fontFamily: 'var(--font-mono)' }}
+              />
+              <p className="text-[9px] text-dim mt-1 italic">
+                Comma-separated. Posts matching these keywords will be highlighted with 🔔.
+              </p>
+            </div>
           </div>
         </div>
 

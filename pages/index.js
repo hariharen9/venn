@@ -464,6 +464,21 @@ export default function Dashboard() {
     }, 100)
   }
 
+  // ── Auto-refresh stale subreddits on mount ──────────────────────────
+  const autoRefreshedRef = useState(false)
+  useEffect(() => {
+    if (autoRefreshedRef[0] || subreddits.length === 0) return
+    autoRefreshedRef[1](true)
+
+    const staleSubs = subreddits.filter(s => !isSubCacheFresh(s.id))
+    if (staleSubs.length > 0) {
+      // Stagger fetches to avoid rate-limiting
+      staleSubs.forEach((sub, i) => {
+        setTimeout(() => fetchSubreddit(sub, true), i * 500)
+      })
+    }
+  }, [subreddits, isSubCacheFresh, fetchSubreddit])
+
   // ── Derived values ────────────────────────────────────────────────────
 
   const totalLoading = loadingIds.size
