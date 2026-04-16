@@ -90,16 +90,18 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
   const statusLabel = { idle: 'not checked', checking: 'checking...', online: 'online', offline: 'unreachable' }
 
   return (
-    <div
-      className="border border-border bg-surface animate-slide-up w-full max-w-lg mx-auto"
-      style={{ fontFamily: 'var(--font-mono)' }}
-    >
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        <span className="text-xs text-accent" style={{ fontFamily: 'var(--font-display)' }}>Settings</span>
-        <button onClick={onClose} className="text-dim hover:text-text text-xs">× close</button>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} style={{ zIndex: 9999 }}>
+      <div
+        className="w-full max-w-lg bg-surface border border-border shadow-2xl rounded overflow-hidden flex flex-col max-h-[85vh] animate-slide-up"
+        style={{ fontFamily: 'var(--font-mono)' }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-black/20">
+          <span className="text-xs text-accent" style={{ fontFamily: 'var(--font-display)' }}>Settings</span>
+          <button onClick={onClose} className="text-dim hover:text-text text-xs">× close</button>
+        </div>
 
-      <div className="p-4 space-y-5">
+        <div className="p-4 space-y-5 overflow-y-auto custom-scrollbar">
 
         {/* UI Theme Settings Section */}
         <div className="space-y-4">
@@ -494,6 +496,7 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
         </div>
 
       </div>
+    </div>
     </div>
   )
 }
