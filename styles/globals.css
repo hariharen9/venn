@@ -7,6 +7,54 @@
 :root {
   --font-mono: 'IBM Plex Mono', monospace;
   --font-display: 'Space Mono', monospace;
+  
+  --color-bg: 10 10 10;
+  --color-surface: 17 17 17;
+  --color-border: 30 30 30;
+  --color-accent: 232 244 41;
+  --color-muted: 58 58 58;
+  --color-text: 232 232 232;
+  --color-dim: 102 102 102;
+}
+
+[data-theme="matrix"] {
+  --color-bg: 5 5 5;
+  --color-surface: 10 15 10;
+  --color-border: 15 28 15;
+  --color-accent: 0 255 65;
+  --color-muted: 13 38 13;
+  --color-text: 224 255 224;
+  --color-dim: 0 143 17;
+}
+
+[data-theme="amber"] {
+  --color-bg: 13 10 0;
+  --color-surface: 20 15 0;
+  --color-border: 38 31 0;
+  --color-accent: 255 176 0;
+  --color-muted: 61 50 0;
+  --color-text: 255 236 179;
+  --color-dim: 204 141 0;
+}
+
+[data-theme="cyber"] {
+  --color-bg: 9 4 15;
+  --color-surface: 15 7 26;
+  --color-border: 33 13 54;
+  --color-accent: 255 0 255;
+  --color-muted: 50 20 80;
+  --color-text: 240 220 255;
+  --color-dim: 0 255 255;
+}
+
+[data-theme="blood"] {
+  --color-bg: 10 0 0;
+  --color-surface: 15 0 0;
+  --color-border: 40 5 5;
+  --color-accent: 255 20 20;
+  --color-muted: 60 10 10;
+  --color-text: 255 220 220;
+  --color-dim: 180 40 40;
 }
 
 * {
@@ -14,8 +62,8 @@
 }
 
 html, body {
-  background: #0a0a0a;
-  color: #e8e8e8;
+  background: rgb(var(--color-bg));
+  color: rgb(var(--color-text));
   font-family: var(--font-mono);
   margin: 0;
   padding: 0;
@@ -29,7 +77,7 @@ html, body {
 ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
 
 /* Selection */
-::selection { background: #e8f42940; color: #e8f429; }
+::selection { background: rgb(var(--color-accent) / 0.25); color: rgb(var(--color-accent)); }
 
 .scanline {
   position: fixed;
@@ -46,15 +94,15 @@ html, body {
 }
 
 .glow-accent {
-  box-shadow: 0 0 20px rgba(232, 244, 41, 0.08);
+  box-shadow: 0 0 20px rgb(var(--color-accent) / 0.08);
 }
 
 .card-hover {
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .card-hover:hover {
-  border-color: #2e2e2e;
-  box-shadow: 0 0 30px rgba(232, 244, 41, 0.04);
+  border-color: rgb(var(--color-border) / 1.5);
+  box-shadow: 0 0 30px rgb(var(--color-accent) / 0.04);
 }
 
 @keyframes blink {
@@ -70,7 +118,7 @@ html, body {
   100% { background-position: 200% 0; }
 }
 .skeleton {
-  background: linear-gradient(90deg, #1a1a1a 25%, #222 50%, #1a1a1a 75%);
+  background: linear-gradient(90deg, rgb(var(--color-surface)) 25%, rgb(var(--color-border)) 50%, rgb(var(--color-surface)) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
 }

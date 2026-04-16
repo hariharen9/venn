@@ -101,8 +101,35 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
 
       <div className="p-4 space-y-5">
 
-        {/* AI Settings Section */}
+        {/* UI Theme Settings Section */}
         <div className="space-y-4">
+          <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>DASHBOARD_THEME</p>
+          <div className="flex gap-2 flex-wrap">
+            {[
+              { id: 'electric', label: 'Electric' },
+              { id: 'matrix', label: 'Matrix' },
+              { id: 'amber', label: 'Amber' },
+              { id: 'cyber', label: 'Cyber' },
+              { id: 'blood', label: 'Blood' },
+            ].map((theme) => (
+              <button
+                key={theme.id}
+                onClick={() => onUpdate({ theme: theme.id })}
+                className="flex-1 py-1.5 text-[10px] border transition-colors rounded uppercase tracking-widest min-w-[70px]"
+                style={{
+                  borderColor: (settings.theme || 'electric') === theme.id ? 'rgb(var(--color-accent))' : 'rgb(var(--color-border))',
+                  color: (settings.theme || 'electric') === theme.id ? 'rgb(var(--color-accent))' : 'rgb(var(--color-dim))',
+                  background: (settings.theme || 'electric') === theme.id ? 'rgb(var(--color-accent) / 0.05)' : 'transparent',
+                }}
+              >
+                {theme.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* AI Settings Section */}
+        <div className="border-t border-border pt-4 space-y-4">
           <p className="text-dim text-sm" style={{ fontFamily: 'var(--font-display)' }}>AI_SETTINGS</p>
           <div>
             <p className="text-dim text-[10px] mb-2 uppercase tracking-tighter">ai provider</p>

@@ -22,18 +22,20 @@ import ToastContainer, { showToast } from '../components/Toast'
 import CloudSyncIndicator from '../components/CloudSyncIndicator'
 import LeftSidebar from '../components/sidebars/LeftSidebar'
 import RightSidebar from '../components/sidebars/RightSidebar'
+import GlobalSearchModal from '../components/GlobalSearchModal'
 
 const API_ENDPOINT = '/api/refresh'
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000
 
 export default function Dashboard() {
   const router = useRouter()
-  const { topics, addTopic, removeTopic, reorderTopics, setCacheEntry, getCacheEntry } = useTopics()
+  const { topics, cache: topicCache = {}, addTopic, removeTopic, reorderTopics, setCacheEntry, getCacheEntry } = useTopics()
   const { settings, updateSettings, checkOllamaAndAutoSelect, getActiveModel } = useSettings()
-  const { packages, addPackage, removePackage, reorderPackages, setCacheEntry: setPkgCacheEntry, getCacheEntry: getPkgCacheEntry } = usePackages()
-  const { feeds, addFeed, removeFeed, reorderFeeds, setCacheEntry: setFeedCacheEntry, getCacheEntry: getFeedCacheEntry } = useFeeds()
-  const { subreddits, addSubreddit, removeSubreddit, updateSubredditConfig, reorderSubreddits, setCacheEntry: setSubCacheEntry, getCacheEntry: getSubCacheEntry, isCacheFresh: isSubCacheFresh } = useSubreddits()
+  const { packages, cache: pkgCache = {}, addPackage, removePackage, reorderPackages, setCacheEntry: setPkgCacheEntry, getCacheEntry: getPkgCacheEntry } = usePackages()
+  const { feeds, cache: feedCache = {}, addFeed, removeFeed, reorderFeeds, setCacheEntry: setFeedCacheEntry, getCacheEntry: getFeedCacheEntry } = useFeeds()
+  const { subreddits, cache: subCache = {}, addSubreddit, removeSubreddit, updateSubredditConfig, reorderSubreddits, setCacheEntry: setSubCacheEntry, getCacheEntry: getSubCacheEntry, isCacheFresh: isSubCacheFresh } = useSubreddits()
   const [loadingIds, setLoadingIds] = useState(new Set())
+  const [showOmnibar, setShowOmnibar] = useState(false)
   const [pkgLoadingIds, setPkgLoadingIds] = useState(new Set())
   const [feedLoadingIds, setFeedLoadingIds] = useState(new Set())
   const [subLoadingIds, setSubLoadingIds] = useState(new Set())
@@ -97,6 +99,46 @@ export default function Dashboard() {
       router.push('/login')
     }
   }, [router])
+
+  // Apply theme
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', settings.theme || 'electric')
+  }, [settings.theme])
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      const tag = e.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+        if (e.key === 'Escape') e.target.blur()
+        return
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault()
+        setShowOmnibar(prev => !prev)
+      } else if (e.key === '/') {
+        e.preventDefault()
+        setShowOmnibar(true)
+      } else if (e.key === 'Escape') {
+        setShowOmnibar(false)
+        setShowSettings(false)
+        setShowAdd(false)
+        setShowAddSubreddit(false)
+        setShowAddFeed(false)
+        setShowAddPackage(false)
+      } else if (e.shiftKey && e.key.toLowerCase() === 's') {
+        e.preventDefault()
+        setShowSettings(prev => !prev)
+      } else if (e.shiftKey && e.key.toLowerCase() === 'r') {
+        e.preventDefault()
+        const syncBtns = document.querySelectorAll('[title^="Sync"], [title^="Fetch"]')
+        syncBtns.forEach(btn => btn.click())
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [showOmnibar])
 
   // Check Ollama and show toast on mount
   useEffect(() => {
@@ -627,6 +669,15 @@ export default function Dashboard() {
           <LeftSidebar />
           
           <main className="flex-1 w-full px-4 sm:px-8 py-6 min-w-0">
+            <GlobalSearchModal
+              isOpen={showOmnibar}
+              onClose={() => setShowOmnibar(false)}
+              topics={topics}
+              feeds={feeds}
+              subreddits={subreddits}
+              packages={packages}
+              globalCache={{ topics: topicCache, subreddits: subCache, feeds: feedCache, packages: pkgCache }}
+            />
             {/* Settings panel */}
             {showSettings && (
               <div className="mb-6">
