@@ -96,6 +96,7 @@ export default function SubredditCard({
   const [expandedPost, setExpandedPost] = useState(null)
   const [activeFlair, setActiveFlair] = useState(null)
   const [showSearch, setShowSearch] = useState(false)
+  const [showSubSettings, setShowSubSettings] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState(null)
   const [isSearching, setIsSearching] = useState(false)
@@ -128,9 +129,9 @@ export default function SubredditCard({
   const posts = cacheEntry?.posts || []
   const currentSort = subreddit.sort || 'hot'
   const currentTime = subreddit.timeRange || 'week'
-  const showThumbnails = settings?.redditThumbnails !== false
-  const showNsfw = settings?.redditNsfw === true
-  const isCompact = settings?.redditCompact === true
+  const showThumbnails = subreddit.showThumbnails !== undefined ? subreddit.showThumbnails : (settings?.redditThumbnails !== false)
+  const showNsfw = subreddit.showNsfw !== undefined ? subreddit.showNsfw : (settings?.redditNsfw === true)
+  const isCompact = subreddit.isCompact !== undefined ? subreddit.isCompact : (settings?.redditCompact === true)
   const keywords = settings?.redditKeywords || []
 
   // Filter NSFW
@@ -284,12 +285,22 @@ export default function SubredditCard({
 
           {/* Search Toggle */}
           <button
-            onClick={() => { setShowSearch(!showSearch); if (showSearch) { setSearchResults(null); setSearchQuery('') } }}
+            onClick={() => { setShowSearch(!showSearch); if (!showSearch) { setShowSubSettings(false); setShowSummary(false); } else { setSearchResults(null); setSearchQuery('') } }}
             className="text-[10px] px-1.5 py-0.5 border rounded transition-colors"
             style={{ borderColor: showSearch ? '#e8f429' : '#333', color: showSearch ? '#e8f429' : '#555' }}
             title="Search subreddit"
           >
             🔍
+          </button>
+
+          {/* Settings Toggle */}
+          <button
+            onClick={() => { setShowSubSettings(!showSubSettings); if (!showSubSettings) { setShowSearch(false); setShowSummary(false); } }}
+            className="text-[10px] px-1.5 py-0.5 border rounded transition-colors"
+            style={{ borderColor: showSubSettings ? '#e8f429' : '#333', color: showSubSettings ? '#e8f429' : '#555' }}
+            title="Subreddit Settings"
+          >
+            ⚙️
           </button>
 
           {cacheEntry?.cachedAt && !isLoading && (
@@ -344,6 +355,98 @@ export default function SubredditCard({
               <button onClick={() => { setShowSummary(false); setSummaryData(null) }} className="text-[9px] text-dim hover:text-text mt-1">↻ regenerate</button>
             </div>
           ) : null}
+        </div>
+      )}
+
+      {/* ── Subreddit Settings Modal ── */}
+      {showSubSettings && (
+        <div className="px-4 py-3 border-b border-border bg-black/20 animate-slide-up space-y-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-[10px] text-accent font-bold tracking-widest">SUBREDDIT CONFIG</span>
+            <button onClick={() => setShowSubSettings(false)} className="text-[10px] text-dim hover:text-text">✕</button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 pb-1 max-w-sm">
+            <div>
+              <label className="text-[9px] text-dim block mb-1">DEFAULT SORT</label>
+              <select 
+                value={currentSort}
+                onChange={(e) => {
+                  onUpdateConfig(subreddit.id, { sort: e.target.value })
+                  setTimeout(() => onSync({ ...subreddit, sort: e.target.value }, true), 100)
+                }}
+                className="w-full bg-surface border border-muted text-xs p-1 outline-none focus:border-accent text-text"
+              >
+                {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+            
+            <div>
+              <label className="text-[9px] text-dim block mb-1">TIME RANGE (TOP)</label>
+              <select 
+                value={currentTime}
+                onChange={(e) => {
+                  onUpdateConfig(subreddit.id, { timeRange: e.target.value })
+                  if (currentSort === 'top') {
+                    setTimeout(() => onSync({ ...subreddit, timeRange: e.target.value }, true), 100)
+                  }
+                }}
+                disabled={currentSort !== 'top'}
+                className="w-full bg-surface border border-muted text-xs p-1 outline-none focus:border-accent disabled:opacity-30 text-text"
+              >
+                {TIME_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[9px] text-dim block mb-1">FETCH LIMIT</label>
+              <select 
+                value={subreddit.limit || settings?.redditPostCount || 15}
+                onChange={(e) => {
+                  onUpdateConfig(subreddit.id, { limit: parseInt(e.target.value) })
+                  setTimeout(() => onSync({ ...subreddit, limit: parseInt(e.target.value) }, true), 100)
+                }}
+                className="w-full bg-surface border border-muted text-xs p-1 outline-none focus:border-accent text-text"
+              >
+                <option value={5}>5 Posts</option>
+                <option value={10}>10 Posts</option>
+                <option value={15}>15 Posts</option>
+                <option value={20}>20 Posts</option>
+                <option value={25}>25 Posts</option>
+                <option value={50}>50 Posts</option>
+              </select>
+            </div>
+            
+            <div className="flex flex-col gap-1.5 justify-center mt-3">
+               <label className="flex items-center gap-2 cursor-pointer">
+                 <input 
+                   type="checkbox" 
+                   checked={isCompact}
+                   onChange={(e) => onUpdateConfig(subreddit.id, { isCompact: e.target.checked })}
+                   className="accent-accent"
+                 />
+                 <span className="text-[9px] text-dim">COMPACT VIEW</span>
+               </label>
+               <label className="flex items-center gap-2 cursor-pointer">
+                 <input 
+                   type="checkbox" 
+                   checked={showThumbnails}
+                   onChange={(e) => onUpdateConfig(subreddit.id, { showThumbnails: e.target.checked })}
+                   className="accent-accent"
+                 />
+                 <span className="text-[9px] text-dim">SHOW THUMBNAILS</span>
+               </label>
+               <label className="flex items-center gap-2 cursor-pointer">
+                 <input 
+                   type="checkbox" 
+                   checked={showNsfw}
+                   onChange={(e) => onUpdateConfig(subreddit.id, { showNsfw: e.target.checked })}
+                   className="accent-accent"
+                 />
+                 <span className="text-[9px] text-dim">ALLOW NSFW</span>
+               </label>
+            </div>
+          </div>
         </div>
       )}
 
@@ -543,12 +646,17 @@ export default function SubredditCard({
                       {/* Expandable Preview */}
                       {isExpanded && (
                         <div className="mt-2 pl-2 border-l-2 border-accent/20 animate-slide-up">
+                          {showThumbnails && post.postType === 'image' && post.url && (
+                             <div className="mb-2">
+                               <img src={post.url} alt="Post media" className="max-w-full max-h-80 object-contain rounded border border-border/50" loading="lazy" />
+                             </div>
+                          )}
                           {post.selftext ? (
                             <p className="text-[11px] text-dim/80 leading-relaxed whitespace-pre-line">
                               {matchesKeyword ? highlightKeywords(post.selftext, keywords) : post.selftext}
                             </p>
                           ) : (
-                            <p className="text-[10px] text-dim italic">No text content — this is a {post.postType} post.</p>
+                            showThumbnails && post.postType === 'image' ? null : <p className="text-[10px] text-dim italic">No text content — this is a {post.postType} post.</p>
                           )}
                           <div className="flex items-center gap-3 mt-2">
                             <a href={post.permalink} target="_blank" rel="noopener noreferrer" className="text-[10px] text-accent hover:underline">
@@ -569,10 +677,22 @@ export default function SubredditCard({
                           {post.selftext.slice(0, 150)}...
                         </p>
                       )}
+
+                      {/* Inline Image Preview */}
+                      {showThumbnails && !isCompact && !isExpanded && post.postType === 'image' && post.url && (
+                        <div className="mt-2" onClick={() => setExpandedPost(post.id)}>
+                          <img 
+                            src={post.url} 
+                            alt="Preview" 
+                            loading="lazy" 
+                            className="w-full max-h-32 object-cover rounded border border-border/50 cursor-pointer hover:opacity-90 transition-opacity" 
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Thumbnail */}
-                    {showThumbnails && !isCompact && post.thumbnail && !isExpanded && (
+                    {showThumbnails && !isCompact && post.thumbnail && !isExpanded && post.postType !== 'image' && (
                       <a href={post.url} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
                         <img
                           src={post.thumbnail}

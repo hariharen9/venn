@@ -87,6 +87,28 @@ export default async function handler(req, res) {
     // Helper to normalize posts
     const normalizePosts = (children) => (children || []).map(child => {
       const d = child.data
+
+      let finalUrl = d.url;
+      let pType = d.is_self ? 'text' : d.is_video ? 'video' : d.post_hint === 'image' ? 'image' : 'link';
+
+      if (pType === 'link' && finalUrl) {
+        if (finalUrl.match(/\.(jpeg|jpg|gif|png)$/i)) {
+          pType = 'image';
+        } else if (d.domain && (d.domain.includes('imgur.com') || d.domain.includes('reddituploads'))) {
+          pType = 'image';
+          if (d.preview?.images?.[0]?.source?.url) {
+            finalUrl = d.preview.images[0].source.url.replace(/&amp;/g, '&');
+          } else if (!finalUrl.includes('/a/') && !finalUrl.includes('/gallery/')) {
+            const match = finalUrl.match(/imgur\.com\/([a-zA-Z0-9]+)$/);
+            if (match) finalUrl = `https://i.imgur.com/${match[1]}.jpg`;
+          }
+        }
+      }
+
+      if (pType === 'image' && d.preview?.images?.[0]?.source?.url) {
+        finalUrl = d.preview.images[0].source.url.replace(/&amp;/g, '&');
+      }
+
       return {
         id: d.id,
         title: d.title,
@@ -96,7 +118,7 @@ export default async function handler(req, res) {
         numComments: d.num_comments,
         createdUtc: d.created_utc,
         permalink: `https://reddit.com${d.permalink}`,
-        url: d.url,
+        url: finalUrl,
         domain: d.domain,
         selftext: d.selftext ? d.selftext.slice(0, 1500) : '',
         thumbnail: d.thumbnail && !['self', 'default', 'nsfw', 'spoiler', 'image', ''].includes(d.thumbnail) ? d.thumbnail : null,
@@ -106,7 +128,7 @@ export default async function handler(req, res) {
         isSpoiler: d.spoiler || false,
         isStickied: d.stickied || false,
         isCrosspost: !!(d.crosspost_parent),
-        postType: d.is_self ? 'text' : d.is_video ? 'video' : d.post_hint === 'image' ? 'image' : 'link',
+        postType: pType,
         totalAwards: d.total_awards_received || 0,
       }
     })

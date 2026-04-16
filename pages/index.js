@@ -411,7 +411,7 @@ export default function Dashboard() {
             subreddit: sub.name,
             sort: sub.sort || 'hot',
             t: sub.timeRange || 'week',
-            limit: settings.redditPostCount || 15,
+            limit: sub.limit || settings.redditPostCount || 15,
           }),
         })
         const data = await res.json()
@@ -512,7 +512,7 @@ export default function Dashboard() {
         />
         {/* Header */}
         <header className="border-b border-border sticky top-0 bg-bg z-10">
-          <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 flex items-center justify-between gap-2">
+          <div className="w-full max-w-[2400px] mx-auto px-4 sm:px-8 py-3 flex items-center justify-between gap-2">
             <div className="flex items-center gap-2 sm:gap-4">
               <div className="flex flex-col items-start gap-1 mt-0.5">
                 <h1 className="text-accent text-base sm:text-lg tracking-widest leading-none" style={{ fontFamily: 'var(--font-display)' }}>
@@ -623,10 +623,10 @@ export default function Dashboard() {
           </div>
         </header>
 
-        <div className="flex max-w-[100vw] justify-center items-start">
+        <div className="flex w-full max-w-[2400px] mx-auto justify-center items-start">
           <LeftSidebar />
           
-          <main className="flex-1 max-w-6xl px-4 py-6 min-w-0">
+          <main className="flex-1 w-full px-4 sm:px-8 py-6 min-w-0">
             {/* Settings panel */}
             {showSettings && (
               <div className="mb-6">
@@ -804,7 +804,7 @@ export default function Dashboard() {
                   </div>
 
                   <SortableContext items={packages.map(pkg => pkg.id)} strategy={rectSortingStrategy}>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 px-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 px-2">
                       {packages.map((pkg) => (
                         <PackageCard
                           key={pkg.id}
@@ -862,8 +862,8 @@ export default function Dashboard() {
         </div>
 
         {/* Footer */}
-        <footer className="border-t border-border mt-8 sm:mt-12">
-          <div className="max-w-6xl mx-auto px-4 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
+        <footer className="border-t border-border mt-8 sm:mt-12 w-full">
+          <div className="w-full max-w-[2400px] mx-auto px-4 sm:px-8 py-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-center sm:text-left">
             <span className="text-dim text-xs">tavily search + {settings.aiMode === 'ollama' ? `ollama (${settings.ollamaModel})` : 'openrouter'}</span>
             <span className="text-dim text-xs">4h cache · manual sync only</span>
           </div>
