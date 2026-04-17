@@ -437,4 +437,24 @@ The Next.js routes are the primary ones; the Netlify Functions are likely legacy
 
 ---
 
+## 10. Native Mobile (PWA) Enhancements
+
+The dashboard is fully optimized to operate as a native-feeling Progressive Web App (PWA):
+- **Responsive Navigation**: Transitions from a continuous desktop dashboard to a paginated mobile app using a Fixed `BottomNavBar`.
+- **Safe Area Insets**: Implements iOS and Android safe-area-inset mapping to perfectly pad content around device notches and gesture home bars (`globals.css`).
+- **Tactile UI Panels**: The Add buttons and Settings menus slide up as native mobile bottom-sheets using `.mobile-drawer-container` overlays on mobile screens rather than pushing layout inline.
+- **PWA Meta**: Configured with `viewport-fit=cover`, `-webkit-tap-highlight-color: transparent`, and touch-action protections.
+
+---
+
+## 11. Reddit User Tracking
+
+The Reddit integration has been expanded to support tracking individual users in addition to subreddits:
+- **Smart Detection**: The system automatically detects if a source is a subreddit (`r/`) or a user (`u/`) based on the input prefix.
+- **Dynamic API Routing**: The backend dynamically routes requests to `/r/` or `/user/` endpoints, fetching submitted posts for individual profiles.
+- **Contextual UI**: User cards feature a blue `USER` badge, displaying Link Karma and Post Karma instead of subreddit-specific metrics like subscriber counts.
+- **Integrated Search**: Searching within a User card automatically filters by the `author:{name}` parameter globally across Reddit.
+
+---
+
 I have **complete knowledge** of every file, every component, every API route, every hook, every design pattern, and every architectural decision in this project. Ready for your directions.

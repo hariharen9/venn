@@ -43,23 +43,23 @@ export default function AddSubredditForm({ onAdd, onClose }) {
     >
       <div className="flex items-center gap-2 mb-4">
         <span className="text-accent text-xs" style={{ fontFamily: 'var(--font-display)' }}>
-          ADD_SUBREDDIT
+          ADD_REDDIT_SOURCE
         </span>
         <div className="flex-1 border-t border-muted" />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Subreddit Name */}
+        {/* Subreddit or User Name */}
         <div>
-          <label className="text-dim text-sm block mb-2">subreddit name *</label>
+          <label className="text-dim text-sm block mb-2">source name (starts with r/ or u/) *</label>
           <div className="flex items-center border border-muted focus-within:border-accent transition-colors rounded">
-            <span className="text-orange-400 text-sm px-3 py-3">r/</span>
+            <span className="text-orange-400 text-sm px-3 py-3">›</span>
             <input
               autoFocus
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value.replace(/^r\//, ''))}
-              placeholder="e.g. programming, worldnews, technology"
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. r/programming or u/spez"
               className="flex-1 bg-transparent text-text text-base py-3 pr-3 outline-none placeholder:text-muted"
               style={{ fontFamily: 'var(--font-mono)' }}
             />

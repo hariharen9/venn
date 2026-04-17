@@ -90,9 +90,9 @@ export default function SettingsPanel({ settings, onUpdate, onClose }) {
   const statusLabel = { idle: 'not checked', checking: 'checking...', online: 'online', offline: 'unreachable' }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose} style={{ zIndex: 9999 }}>
+    <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:p-4 bg-black/60 backdrop-blur-sm animate-fade-in" onClick={onClose}>
       <div
-        className="w-full max-w-lg bg-surface border border-border shadow-2xl rounded overflow-hidden flex flex-col max-h-[85vh] animate-slide-up"
+        className="w-full sm:max-w-lg bg-surface border-t sm:border border-border shadow-2xl rounded-t-2xl sm:rounded overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[85vh] animate-slide-up pb-[calc(env(safe-area-inset-bottom)+5rem)] sm:pb-0"
         style={{ fontFamily: 'var(--font-mono)' }}
         onClick={e => e.stopPropagation()}
       >

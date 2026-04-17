@@ -59,6 +59,7 @@
 
 * {
   box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
 }
 
 html, body {
@@ -68,6 +69,31 @@ html, body {
   margin: 0;
   padding: 0;
   min-height: 100vh;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+}
+
+/* Safe Area Utility Classes */
+.safe-pt { padding-top: env(safe-area-inset-top); }
+.safe-pb { padding-bottom: max(env(safe-area-inset-bottom), 1rem); }
+.safe-pl { padding-left: env(safe-area-inset-left); }
+.safe-pr { padding-right: env(safe-area-inset-right); }
+
+/* Bottom Sheet Animation */
+.mobile-bottom-sheet {
+  animation: slide-up 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.mobile-drawer-container {
+  @apply fixed inset-0 z-50 flex items-end sm:static sm:z-auto sm:block bg-black/60 sm:bg-transparent backdrop-blur-sm sm:backdrop-blur-none;
+}
+
+.mobile-drawer-content {
+  @apply w-full bg-surface sm:bg-transparent border-t border-border sm:border-0 rounded-t-2xl sm:rounded-none p-4 pb-[calc(env(safe-area-inset-bottom)+5rem)] sm:pb-0 mobile-bottom-sheet sm:animate-none overflow-y-auto max-h-[90vh] sm:max-h-none sm:mb-6 shadow-2xl;
 }
 
 /* Scrollbar */

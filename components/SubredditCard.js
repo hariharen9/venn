@@ -185,7 +185,7 @@ export default function SubredditCard({
       const res = await fetch('/api/reddit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subreddit: subreddit.name, action: 'search', query: searchQuery.trim(), limit: 15 }),
+        body: JSON.stringify({ subreddit: subreddit.name, type: subreddit.type || 'subreddit', action: 'search', query: searchQuery.trim(), limit: 15 }),
       })
       const data = await res.json()
       if (data.posts) setSearchResults(data.posts)
@@ -258,10 +258,18 @@ export default function SubredditCard({
               animation: isLoading ? 'pulse 1s ease-in-out infinite' : 'none',
             }}
           />
-          <span className="text-text text-sm font-medium truncate" style={{ fontFamily: 'var(--font-display)' }} title={`r/${subreddit.name}`}>
-            r/{subreddit.name}
+          <span className="text-text text-sm font-medium truncate" style={{ fontFamily: 'var(--font-display)' }} title={`${subreddit.type === 'user' ? 'u' : 'r'}/${subreddit.name}`}>
+            {subreddit.type === 'user' ? 'u' : 'r'}/{subreddit.name}
           </span>
-          <span className="text-[10px] text-orange-400 border border-orange-400/30 px-1.5 py-0.5 rounded flex-shrink-0">REDDIT</span>
+          <span 
+            className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 border"
+            style={{ 
+              color: subreddit.type === 'user' ? '#60a5fa' : '#fb923c',
+              borderColor: subreddit.type === 'user' ? 'rgba(96,165,250,0.3)' : 'rgba(251,146,60,0.3)'
+            }}
+          >
+            {subreddit.type === 'user' ? 'USER' : 'REDDIT'}
+          </span>
           {hasKeywordMatch && <span className="text-[9px] text-yellow-400 animate-pulse" title="Keyword match found">🔔</span>}
         </div>
 
@@ -362,7 +370,7 @@ export default function SubredditCard({
       {showSubSettings && (
         <div className="px-4 py-3 border-b border-border bg-black/20 animate-slide-up space-y-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] text-accent font-bold tracking-widest">SUBREDDIT CONFIG</span>
+            <span className="text-[10px] text-accent font-bold tracking-widest">{subreddit.type === 'user' ? 'USER' : 'SUBREDDIT'} CONFIG</span>
             <button onClick={() => setShowSubSettings(false)} className="text-[10px] text-dim hover:text-text">✕</button>
           </div>
           
@@ -459,7 +467,7 @@ export default function SubredditCard({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder={`Search r/${subreddit.name}...`}
+            placeholder={`Search ${subreddit.type === 'user' ? 'author:' : 'r/'}${subreddit.name}...`}
             className="flex-1 bg-transparent text-xs text-text outline-none placeholder:text-muted"
             style={{ fontFamily: 'var(--font-mono)' }}
           />
@@ -481,12 +489,12 @@ export default function SubredditCard({
         </div>
       )}
 
-      {/* ── Subreddit Intel Bar ── */}
-      {hasData && meta.subscribers > 0 && (
+      {/* ── Source Intel Bar ── */}
+      {hasData && (meta.subscribers > 0 || meta.activeUsers > 0) && (
         <div className="flex items-center justify-between px-4 py-1.5 border-b border-border/50 bg-white/[0.01]">
           <div className="flex items-center gap-3">
-            <span className="text-[9px] text-dim">SUBSCRIBERS: <span className="text-text">{formatSubscribers(meta.subscribers)}</span></span>
-            {meta.activeUsers > 0 && <span className="text-[9px] text-dim">ACTIVE: <span className="text-green-400">{formatSubscribers(meta.activeUsers)}</span></span>}
+            <span className="text-[9px] text-dim">{subreddit.type === 'user' ? 'KARMA:' : 'SUBSCRIBERS:'} <span className="text-text">{formatSubscribers(meta.subscribers)}</span></span>
+            {meta.activeUsers > 0 && <span className="text-[9px] text-dim">{subreddit.type === 'user' ? 'LINK KARMA:' : 'ACTIVE:'} <span className={subreddit.type === 'user' ? 'text-blue-400' : 'text-green-400'}>{formatSubscribers(meta.activeUsers)}</span></span>}
           </div>
           {meta.isNsfw && <span className="text-[8px] text-red-400 border border-red-400/30 px-1 rounded">NSFW</span>}
         </div>
@@ -728,7 +736,7 @@ export default function SubredditCard({
         </button>
         <span className="text-xs text-dim flex items-center gap-2">
           {!isLoading && (isStale && hasData ? <span style={{ color: '#f59e0b' }}>stale</span> : hasData ? 'fresh' : '')}
-          <a href={`https://www.reddit.com/r/${subreddit.name}`} target="_blank" rel="noreferrer" title="Open on Reddit" className="text-dim hover:text-orange-400 transition-colors text-[10px]">↗</a>
+          <a href={`https://www.reddit.com/${subreddit.type === 'user' ? 'user' : 'r'}/${subreddit.name}`} target="_blank" rel="noreferrer" title="Open on Reddit" className="text-dim hover:text-orange-400 transition-colors text-[10px]">↗</a>
         </span>
       </div>
 

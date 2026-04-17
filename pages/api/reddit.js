@@ -72,14 +72,16 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
-  const { subreddit, sort = 'hot', t = 'week', limit = 15, action = 'listing', query = '' } = req.body || {}
+  const { subreddit, type = 'subreddit', sort = 'hot', t = 'week', limit = 15, action = 'listing', query = '' } = req.body || {}
 
   if (!subreddit) {
     return res.status(400).json({ error: 'subreddit is required' })
   }
 
-  // Sanitize subreddit name (remove r/ prefix if present)
-  const subName = subreddit.replace(/^r\//, '').trim().toLowerCase()
+  // Sanitize name (remove r/ or u/ prefix if present)
+  const isUser = type === 'user'
+  const subName = subreddit.replace(/^r\//, '').replace(/^u\//, '').replace(/^user\//, '').trim().toLowerCase()
+  const basePath = isUser ? `/user/${subName}` : `/r/${subName}`
 
   try {
     const token = await getAccessToken()
@@ -135,10 +137,11 @@ export default async function handler(req, res) {
 
     // ── Search Mode ──
     if (action === 'search' && query) {
-      const searchResults = await redditGet(
-        `/r/${subName}/search?q=${encodeURIComponent(query)}&restrict_sr=on&sort=relevance&limit=${limit}`,
-        token
-      )
+      const searchUrl = isUser 
+        ? `/search?q=${encodeURIComponent(`author:${subName} ${query}`)}&sort=relevance&limit=${limit}`
+        : `/r/${subName}/search?q=${encodeURIComponent(query)}&restrict_sr=on&sort=relevance&limit=${limit}`
+        
+      const searchResults = await redditGet(searchUrl, token)
       return res.status(200).json({
         posts: normalizePosts(searchResults.data?.children),
         searchQuery: query,
@@ -148,16 +151,28 @@ export default async function handler(req, res) {
 
     // ── Listing Mode ──
     const sortParam = sort === 'top' ? `/${sort}?t=${t}&limit=${limit}` : `/${sort}?limit=${limit}`
+    const listingEndpoint = isUser ? `${basePath}/submitted${sortParam}` : `${basePath}${sortParam}`
+    
     const [listing, about] = await Promise.all([
-      redditGet(`/r/${subName}${sortParam}`, token),
-      redditGet(`/r/${subName}/about`, token),
+      redditGet(listingEndpoint, token),
+      redditGet(`${basePath}/about`, token),
     ])
 
     const posts = normalizePosts(listing.data?.children)
 
-    // Extract subreddit metadata
+    // Extract metadata
     const subData = about.data || {}
-    const meta = {
+    const meta = isUser ? {
+      name: subData.name || subName,
+      title: subData.subreddit?.title || '',
+      description: subData.subreddit?.public_description || '',
+      subscribers: subData.subreddit?.subscribers || subData.link_karma + subData.comment_karma || 0,
+      activeUsers: subData.link_karma || 0,
+      icon: subData.icon_img?.split('?')[0] || subData.snoovatar_img || null,
+      bannerColor: subData.subreddit?.key_color || null,
+      isNsfw: subData.subreddit?.over_18 || false,
+      createdUtc: subData.created_utc || 0,
+    } : {
       name: subData.display_name || subName,
       title: subData.title || '',
       description: subData.public_description || '',

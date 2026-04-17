@@ -23,6 +23,7 @@ import CloudSyncIndicator from '../components/CloudSyncIndicator'
 import LeftSidebar from '../components/sidebars/LeftSidebar'
 import RightSidebar from '../components/sidebars/RightSidebar'
 import GlobalSearchModal from '../components/GlobalSearchModal'
+import BottomNavBar from '../components/BottomNavBar'
 
 const API_ENDPOINT = '/api/refresh'
 const CACHE_TTL_MS = 4 * 60 * 60 * 1000
@@ -50,6 +51,7 @@ export default function Dashboard() {
   const [syncingAllSubs, setSyncingAllSubs] = useState(false)
   const [toastShown, setToastShown] = useState(false)
   const [activeProvider, setActiveProvider] = useState({ provider: 'openrouter', model: 'gemma-4-26b-a4b-it' })
+  const [activeTab, setActiveTab] = useState('topics')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -434,7 +436,7 @@ export default function Dashboard() {
         if (entry && entry.cachedAt && (Date.now() - entry.cachedAt < REDDIT_CACHE_TTL)) {
           setConfirmModal({
             isOpen: true,
-            message: `r/${sub.name} was updated recently. Sync anyway?`,
+            message: `${sub.type === 'user' ? 'u' : 'r'}/${sub.name} was updated recently. Sync anyway?`,
             onConfirm: () => {
               closeConfirm()
               fetchSubreddit(sub, true)
@@ -451,6 +453,7 @@ export default function Dashboard() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             subreddit: sub.name,
+            type: sub.type || 'subreddit',
             sort: sub.sort || 'hot',
             t: sub.timeRange || 'week',
             limit: sub.limit || settings.redditPostCount || 15,
@@ -593,11 +596,26 @@ export default function Dashboard() {
                 </svg>
               </button>
 
+              {/* Mobile Contextual Add Button */}
+              <button
+                onClick={() => {
+                  if (activeTab === 'topics') { setShowAdd(!showAdd); setShowAddPackage(false); setShowAddFeed(false); setShowAddSubreddit(false); setShowSettings(false); }
+                  else if (activeTab === 'packages') { setShowAddPackage(!showAddPackage); setShowAdd(false); setShowAddFeed(false); setShowAddSubreddit(false); setShowSettings(false); }
+                  else if (activeTab === 'feeds') { setShowAddFeed(!showAddFeed); setShowAdd(false); setShowAddPackage(false); setShowAddSubreddit(false); setShowSettings(false); }
+                  else if (activeTab === 'subreddits') { setShowAddSubreddit(!showAddSubreddit); setShowAdd(false); setShowAddPackage(false); setShowAddFeed(false); setShowSettings(false); }
+                }}
+                className="sm:hidden text-xs text-text border border-border bg-surface hover:text-accent p-2 h-8 w-8 flex items-center justify-center transition-colors"
+                title="Add New item"
+                style={{ fontFamily: 'var(--font-display)' }}
+              >
+                +
+              </button>
+
               {hasTopics && (
                 <button
                   onClick={() => handleSyncAll()}
                   disabled={syncingAll || totalLoading > 0}
-                  className="text-xs text-dim hover:text-accent border border-muted hover:border-accent px-2 sm:px-3 py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="hidden sm:inline-block text-xs text-dim hover:text-accent border border-muted hover:border-accent px-2 sm:px-3 py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {syncingAll ? 'syncing...' : 'sync'}
                 </button>
@@ -605,7 +623,7 @@ export default function Dashboard() {
 
               <button
                 onClick={() => { setShowAdd(!showAdd); setShowSettings(false); setShowAddPackage(false); setShowAddFeed(false); setShowAddSubreddit(false) }}
-                className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
+                className="hidden sm:inline-block text-xs px-2 sm:px-3 py-1.5 border transition-colors"
                 style={{
                   borderColor: showAdd ? '#e8f429' : '#2a2a2a',
                   color: showAdd ? '#e8f429' : '#e8e8e8',
@@ -617,7 +635,7 @@ export default function Dashboard() {
 
               <button
                 onClick={() => { setShowAddPackage(!showAddPackage); setShowAdd(false); setShowSettings(false); setShowAddFeed(false); setShowAddSubreddit(false) }}
-                className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
+                className="hidden sm:inline-block text-xs px-2 sm:px-3 py-1.5 border transition-colors"
                 style={{
                   borderColor: showAddPackage ? '#e8f429' : '#2a2a2a',
                   color: showAddPackage ? '#e8f429' : '#e8e8e8',
@@ -630,7 +648,7 @@ export default function Dashboard() {
 
               <button
                 onClick={() => { setShowAddFeed(!showAddFeed); setShowAdd(false); setShowAddPackage(false); setShowSettings(false); setShowAddSubreddit(false) }}
-                className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
+                className="hidden sm:inline-block text-xs px-2 sm:px-3 py-1.5 border transition-colors"
                 style={{
                   borderColor: showAddFeed ? '#e8f429' : '#2a2a2a',
                   color: showAddFeed ? '#e8f429' : '#e8e8e8',
@@ -643,15 +661,15 @@ export default function Dashboard() {
 
               <button
                 onClick={() => { setShowAddSubreddit(!showAddSubreddit); setShowAdd(false); setShowAddPackage(false); setShowAddFeed(false); setShowSettings(false) }}
-                className="text-xs px-2 sm:px-3 py-1.5 border transition-colors"
+                className="hidden sm:inline-block text-xs px-2 sm:px-3 py-1.5 border transition-colors"
                 style={{
                   borderColor: showAddSubreddit ? '#e8f429' : '#2a2a2a',
                   color: showAddSubreddit ? '#e8f429' : '#e8e8e8',
                   fontFamily: 'var(--font-display)',
                 }}
-                title="Add subreddit to track"
+                title="Add Reddit source to track (r/ or u/)"
               >
-                {showAddSubreddit ? '−' : '+'} SUB
+                {showAddSubreddit ? '−' : '+'} REDDIT
               </button>
 
               <button
@@ -680,52 +698,58 @@ export default function Dashboard() {
             />
             {/* Settings panel */}
             {showSettings && (
-              <div className="mb-6">
-                <SettingsPanel
-                  settings={settings}
-                  onUpdate={updateSettings}
-                  onClose={() => setShowSettings(false)}
-                />
-              </div>
+              <SettingsPanel
+                settings={settings}
+                onUpdate={updateSettings}
+                onClose={() => setShowSettings(false)}
+              />
             )}
 
             {/* Add topic form */}
             {showAdd && (
-              <div className="mb-6">
-                <AddTopicForm
-                  onAdd={handleAddTopic}
-                  onClose={() => setShowAdd(false)}
-                />
+              <div className="mobile-drawer-container">
+                <div className="mobile-drawer-content">
+                  <AddTopicForm
+                    onAdd={handleAddTopic}
+                    onClose={() => setShowAdd(false)}
+                  />
+                </div>
               </div>
             )}
 
             {/* Add package form */}
             {showAddPackage && (
-              <div className="mb-6">
-                <AddPackageForm
-                  onAdd={handleAddPackage}
-                  onClose={() => setShowAddPackage(false)}
-                />
+              <div className="mobile-drawer-container">
+                <div className="mobile-drawer-content">
+                  <AddPackageForm
+                    onAdd={handleAddPackage}
+                    onClose={() => setShowAddPackage(false)}
+                  />
+                </div>
               </div>
             )}
 
             {/* Add feed form */}
             {showAddFeed && (
-              <div className="mb-6">
-                <AddFeedForm
-                  onAdd={handleAddFeed}
-                  onClose={() => setShowAddFeed(false)}
-                />
+              <div className="mobile-drawer-container">
+                <div className="mobile-drawer-content">
+                  <AddFeedForm
+                    onAdd={handleAddFeed}
+                    onClose={() => setShowAddFeed(false)}
+                  />
+                </div>
               </div>
             )}
 
             {/* Add subreddit form */}
             {showAddSubreddit && (
-              <div className="mb-6">
-                <AddSubredditForm
-                  onAdd={handleAddSubreddit}
-                  onClose={() => setShowAddSubreddit(false)}
-                />
+              <div className="mobile-drawer-container">
+                <div className="mobile-drawer-content">
+                  <AddSubredditForm
+                    onAdd={handleAddSubreddit}
+                    onClose={() => setShowAddSubreddit(false)}
+                  />
+                </div>
               </div>
             )}
 
@@ -771,6 +795,7 @@ export default function Dashboard() {
             )}
 
             {/* Topic grid */}
+            <div className={`mt-8 sm:mt-0 w-full ${activeTab === 'topics' ? 'block' : 'hidden sm:block'}`}>
             {hasTopics && (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndTopics}>
                 <div className="flex items-center gap-3 mb-4 px-2">
@@ -797,14 +822,15 @@ export default function Dashboard() {
                 </SortableContext>
               </DndContext>
             )}
+            </div>
 
-            {/* ── Reddit Tracker ─────────────────────────────────────────── */}
+            {/* ── Reddit Intelligence ─────────────────────────────────────────── */}
             {hasSubreddits && (
-              <div className="mt-8">
+              <div className={`mt-8 ${activeTab === 'subreddits' ? 'block' : 'hidden sm:block'}`}>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndSubs}>
                   <div className="flex items-center gap-3 mb-4 px-2">
                     <span className="text-dim text-xs">
-                      {subreddits.length} subreddit{subreddits.length !== 1 ? 's' : ''}
+                      {subreddits.length} reddit source{subreddits.length !== 1 ? 's' : ''}
                     </span>
                     <div className="flex-1 border-t border-border" />
                     <button
@@ -838,7 +864,7 @@ export default function Dashboard() {
 
             {/* ── Package Tracker ─────────────────────────────────────────── */}
             {hasPackages && (
-              <div className="mt-8">
+              <div className={`mt-8 ${activeTab === 'packages' ? 'block' : 'hidden sm:block'}`}>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndPackages}>
                   <div className="flex items-center gap-3 mb-4 px-2">
                     <span className="text-dim text-xs">
@@ -874,7 +900,7 @@ export default function Dashboard() {
 
             {/* ── Feeds Tracker ─────────────────────────────────────────── */}
             {hasFeeds && (
-              <div className="mt-8">
+              <div className={`mt-8 ${activeTab === 'feeds' ? 'block' : 'hidden sm:block'}`}>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEndFeeds}>
                   <div className="flex items-center gap-3 mb-4 px-2">
                     <span className="text-dim text-xs">
@@ -921,6 +947,7 @@ export default function Dashboard() {
         </footer>
       </div>
 
+      <BottomNavBar activeTab={activeTab} setActiveTab={setActiveTab} />
       <ToastContainer />
     </>
   )
