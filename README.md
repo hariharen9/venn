@@ -1,151 +1,91 @@
-# ⚡ VENN — Personal Intel Dashboard
+# ⚡ VENN — Personal intelligence Dashboard
 
-```
-VENN
-```
-
-> **Self-hosted AI intelligence dashboard.** Track anything. Own your data.
-
----
-
-## Features
-
-- **AI-Powered Tracking** — Add any topic, get AI-summarized intel
-- **Search + Summarize** — Tavily Search + OpenRouter (or Ollama)
-- **PIN-Locked** — Application-wide authentication (configurable via `APP_PIN`)
-- **Offline-First** — localStorage persistence, works without internet
-- **Mobile-First** — Fully responsive design
-- **Serverless** — Deploys to Netlify in seconds
+<div align="center">
+  <img src="public/apple-touch-icon.png" width="128" height="128" alt="Venn Logo" />
+  <p><strong>A hyper-fast, private, and AI-powered intelligence feed for your digital life.</strong></p>
+  <p>Created by <a href="https://github.com/hariharen9">hariharen9</a></p>
+</div>
 
 ---
 
-## Stack
+> **Track anything. Summary everything. Own your data.** Venn is a self-hosted command center designed to transform scattered information into actionable intelligence.
 
-| Layer | Tech |
-|-------|------|
-| Frontend | Next.js 14 + Tailwind CSS |
-| Backend | Netlify Functions (serverless) |
-| Search | Tavily Search API |
-| AI | OpenRouter (Gemma 3 27B) or local Ollama |
-| Auth | Custom PIN via middleware + cookies |
-| Storage | localStorage (no DB required) |
+## 🚀 Key Features
+
+- **AI-Powered Tracking** — Add any topic, subreddit, or individual Reddit user.
+- **Semantic Summarization** — Real-time synthesis of web search results and social feeds using LLMs.
+- **Native PWA Feel** — Mobile-optimized with bottom-sheet modals, safe-area support, and a fixed navigation bar.
+- **Local-First / Private** — Support for local LLMs via **Ollama**. Cloud backup via Netlify Blobs.
+- **Universal Search** — Instant semantic global search (Omnibar) across all your tracked entities.
+- **Aesthetic First** — Terminal-inspired, high-breathability dark interface with multiple dynamic themes.
+- **PIN-Locked** — Lightweight security to keep your dashboard eyes-only.
+
+## 🛠️ Technology Stack
+
+| Layer | Technology |
+|---|---|
+| **Framework** | [Next.js 14](https://nextjs.org/) (App + Pages) |
+| **Styling** | [Tailwind CSS](https://tailwindcss.com/) + Vanilla CSS |
+| **AI Processing** | [OpenRouter](https://openrouter.ai/) (Gemma 3) or local [Ollama](https://ollama.com/) |
+| **Search Engine** | [Tavily AI](https://tavily.com/) |
+| **Persistence** | [Netlify Blobs](https://www.netlify.com/products/blobs/) (Global Sync) + LocalStorage |
+| **Auth** | Custom PIN-based Middleware |
 
 ---
 
-## Quick Start
+## 🚦 Getting Started (Self-Host)
 
-### 1. Clone & Install
+Venn is designed to be self-hosted. You run it, you own the keys.
+
+### 1. Installation
 
 ```bash
-git clone https://github.com/your-repo/venn.git
+git clone https://github.com/hariharen9/venn.git
 cd venn
 npm install
 ```
 
-### 2. Get API Keys
+### 2. Environment Setup
 
-**Tavily Search** (1000 free credits/month):
-- https://tavily.com → Sign up → Dashboard → Copy API Key
-
-**OpenRouter** (free models available):
-- https://openrouter.ai → Sign up → Settings → API Keys
-
-### 3. Configure Environment
+Copy `.env.example` to `.env.local` and provide your keys:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Edit `.env.local`:
-```
-TAVILY_API_KEY=tvly-xxxxxxxxxxxx
-OPENROUTER_API_KEY=sk-or-v1-xxxxxxxxxxxx
-APP_PIN=your_secure_pin_here
-```
+| Variable | Description |
+|---|---|
+| `TAVILY_API_KEY` | [Tavily](https://tavily.com/) Search API Key |
+| `OPENROUTER_API_KEY` | [OpenRouter](https://openrouter.ai/) API Key |
+| `APP_PIN` | Your chosen 6+ digit access code |
+| `REDDIT_CLIENT_ID` | Reddit App Client ID |
+| `REDDIT_CLIENT_SECRET` | Reddit App Secret |
 
-### 4. Run Locally
+### 3. Development
 
 ```bash
+# Using Netlify CLI to support Blobs and Functions
 npx netlify dev
-# Open http://localhost:8888
 ```
 
 ---
 
-## Authentication
+## 📱 Mobile & PWA
 
-Venn is secured with a PIN-protected authentication layer:
-
-- **APP_PIN** env variable sets your access code
-- Sessions last **1 day** (per device/browser)
-- Middleware intercepts all routes → redirects to `/login` if unauthorized
-- Logout clears session → returns to lock screen
-
-**Security Note**: Use a strong PIN (6+ digits) in production.
+Venn is a first-class PWA. 
+- **iOS**: "Add to Home Screen" for a full-screen, native experience with safe-area support.
+- **Android**: Installable directly from the browser.
+- **Tactile UI**: Uses bottom-sheet drawers and tabbed navigation for a modern mobile feel.
 
 ---
 
-## Deploy
+## 📦 Data & Privacy
 
-### Netlify (Recommended)
+- **No Database**: Venn operates purely on your local storage and cloud blobs.
+- **Local AI**: Switch to **Ollama** in Settings to run all data summarization on your own hardware.
+- **Sync**: Bidirectional cloud sync ensures your data follows you across devices without a traditional database.
 
-```bash
-# CLI
-npm install -g netlify-cli
-netlify login
-netlify init
+## 📄 License
 
-# Set environment variables
-netlify env:set TAVILY_API_KEY your_key
-netlify env:set OPENROUTER_API_KEY your_key
-netlify env:set APP_PIN your_pin
-
-# Deploy
-netlify deploy --prod
-```
-
-### Or via Dashboard
-
-1. Push to GitHub
-2. https://app.netlify.com → New site from Git
-3. Build: `npm run build` | Publish: `.next`
-4. Add env vars in Site Settings → Environment Variables
-5. Install `@netlify/plugin-nextjs` plugin
-
----
-
-## Usage
-
-- **+ ADD** — Add a topic to track (e.g., "NVIDIA earnings", "SpaceX launches")
-- **Custom Query** — Optionally override the search query for better results
-- **sync** — Manual refresh (cached for 4 hours)
-- **Settings** — Toggle between OpenRouter (cloud) or Ollama (local)
-- **× EXIT** — Lock dashboard and return to login
-
----
-
-## Rate Limits (Free Tier)
-
-| Service | Limit | Notes |
-|---------|-------|-------|
-| Tavily Search | 1,000 credits/mo | 1 search = 1 credit |
-| OpenRouter | Rate limited | Best during off-peak |
-| Netlify Functions | 125,000/mo | More than enough |
-
-With 10 topics: ~100 full refreshes/month. Tweak `CACHE_TTL_MS` in `lib/useTopics.js` to extend.
-
----
-
-## Configuration
-
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `TAVILY_API_KEY` | Tavily search API key | Yes |
-| `OPENROUTER_API_KEY` | OpenRouter API key | Yes |
-| `APP_PIN` | Dashboard access PIN | Yes |
-
----
-
-## License
-
-MIT — Use your own keys, host your own instance.
+MIT — Created by [hariharen9](https://github.com/hariharen9). 
+**Note:** This is a personal tool. It is provided "as is". Use your own API keys for third-party services.
