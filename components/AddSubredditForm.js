@@ -1,10 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
-const SORT_OPTIONS = [
+const SUBREDDIT_SORT_OPTIONS = [
   { value: 'hot', label: 'Hot', desc: 'Trending posts right now' },
   { value: 'new', label: 'New', desc: 'Most recent submissions' },
   { value: 'top', label: 'Top', desc: 'Highest scored posts' },
   { value: 'rising', label: 'Rising', desc: 'Gaining momentum fast' },
+]
+
+const USER_SORT_OPTIONS = [
+  { value: 'overview', label: 'Overview', desc: 'Posts and comments' },
+  { value: 'posts', label: 'Posts', desc: 'User submissions only' },
+  { value: 'comments', label: 'Comments', desc: 'User comments only' },
 ]
 
 const TIME_OPTIONS = [
@@ -20,6 +26,18 @@ export default function AddSubredditForm({ onAdd, onClose }) {
   const [name, setName] = useState('')
   const [sort, setSort] = useState('hot')
   const [timeRange, setTimeRange] = useState('week')
+  const [sourceType, setSourceType] = useState('subreddit')
+
+  useEffect(() => {
+    const cleanName = name.trim().toLowerCase()
+    if (cleanName.startsWith('u/') || cleanName.startsWith('user:')) {
+      setSourceType('user')
+      setSort('overview')
+    } else {
+      setSourceType('subreddit')
+      setSort('hot')
+    }
+  }, [name])
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -70,7 +88,7 @@ export default function AddSubredditForm({ onAdd, onClose }) {
         <div>
           <label className="text-dim text-sm block mb-2">default sort</label>
           <div className="flex flex-wrap gap-2">
-            {SORT_OPTIONS.map((option) => (
+            {(sourceType === 'user' ? USER_SORT_OPTIONS : SUBREDDIT_SORT_OPTIONS).map((option) => (
               <button
                 key={option.value}
                 type="button"
@@ -87,12 +105,12 @@ export default function AddSubredditForm({ onAdd, onClose }) {
             ))}
           </div>
           <p className="text-xs text-dim mt-2">
-            {SORT_OPTIONS.find(o => o.value === sort)?.desc}
+            {(sourceType === 'user' ? USER_SORT_OPTIONS : SUBREDDIT_SORT_OPTIONS).find(o => o.value === sort)?.desc}
           </p>
         </div>
 
-        {/* Time Range (only for top) */}
-        {sort === 'top' && (
+        {/* Time Range (only for subreddits, when sorting by top) */}
+        {sourceType === 'subreddit' && sort === 'top' && (
           <div className="animate-fade-in">
             <label className="text-dim text-sm block mb-2">time range</label>
             <div className="flex flex-wrap gap-2">

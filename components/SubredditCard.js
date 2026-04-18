@@ -262,7 +262,7 @@ export default function SubredditCard({
             {subreddit.type === 'user' ? 'u' : 'r'}/{subreddit.name}
           </span>
           <span 
-            className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 border"
+            className="text-[10px] px-1.5 py-0.5 rounded flex-shrink-0 border hidden sm:block"
             style={{ 
               color: subreddit.type === 'user' ? '#60a5fa' : '#fb923c',
               borderColor: subreddit.type === 'user' ? 'rgba(96,165,250,0.3)' : 'rgba(251,146,60,0.3)'
@@ -270,16 +270,16 @@ export default function SubredditCard({
           >
             {subreddit.type === 'user' ? 'USER' : 'REDDIT'}
           </span>
-          {hasKeywordMatch && <span className="text-[9px] text-yellow-400 animate-pulse" title="Keyword match found">🔔</span>}
+          {hasKeywordMatch && <span className="text-[9px] text-yellow-400 animate-pulse hidden sm:block" title="Keyword match found">🔔</span>}
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+        <div className="flex items-center gap-1 flex-shrink-0 ml-1 sm:ml-2">
           {/* AI Summarize Button */}
           {hasData && (
             <button
               onClick={handleSummarize}
               disabled={isSummarizing}
-              className="text-[10px] px-1.5 py-0.5 border rounded transition-colors"
+              className="text-[10px] px-1 py-0.5 border rounded transition-colors"
               style={{
                 borderColor: showSummary ? '#a78bfa' : '#333',
                 color: isSummarizing ? '#a78bfa' : showSummary ? '#a78bfa' : '#555',
@@ -287,14 +287,14 @@ export default function SubredditCard({
               }}
               title="AI-powered subreddit digest"
             >
-              {isSummarizing ? '◎' : '✦'} AI
+              {isSummarizing ? '◎' : '✦'}
             </button>
           )}
 
           {/* Search Toggle */}
           <button
             onClick={() => { setShowSearch(!showSearch); if (!showSearch) { setShowSubSettings(false); setShowSummary(false); } else { setSearchResults(null); setSearchQuery('') } }}
-            className="text-[10px] px-1.5 py-0.5 border rounded transition-colors"
+            className="text-[10px] px-1 py-0.5 border rounded transition-colors"
             style={{ borderColor: showSearch ? '#e8f429' : '#333', color: showSearch ? '#e8f429' : '#555' }}
             title="Search subreddit"
           >
@@ -304,7 +304,7 @@ export default function SubredditCard({
           {/* Settings Toggle */}
           <button
             onClick={() => { setShowSubSettings(!showSubSettings); if (!showSubSettings) { setShowSearch(false); setShowSummary(false); } }}
-            className="text-[10px] px-1.5 py-0.5 border rounded transition-colors"
+            className="text-[10px] px-1 py-0.5 border rounded transition-colors"
             style={{ borderColor: showSubSettings ? '#e8f429' : '#333', color: showSubSettings ? '#e8f429' : '#555' }}
             title="Subreddit Settings"
           >
@@ -312,8 +312,8 @@ export default function SubredditCard({
           </button>
 
           {cacheEntry?.cachedAt && !isLoading && (
-            <span className="text-xs tabular-nums" style={{ color: isStale ? '#f59e0b' : '#555' }} title={isStale ? 'Cache stale' : 'Cache fresh'}>
-              {isStale ? '⚠ ' : ''}{cacheAge(cacheEntry.cachedAt)}
+            <span className="text-[10px] tabular-nums" style={{ color: isStale ? '#f59e0b' : '#555' }} title={isStale ? 'Cache stale' : 'Cache fresh'}>
+              {isStale ? '⚠' : ''}{cacheAge(cacheEntry.cachedAt)}
             </span>
           )}
 
