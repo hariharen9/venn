@@ -1,7 +1,6 @@
 # ⚡ VENN — Personal Intelligence Dashboard
 
 <div align="center">
-  <img src="public/apple-touch-icon.png" width="128" height="128" alt="Venn Logo" />
   <p><strong>A hyper-fast, private, and AI-powered intelligence feed for your digital life.</strong></p>
   <p>Created by <a href="https://github.com/hariharen9">hariharen9</a></p>
 </div>
@@ -64,7 +63,7 @@ Edit `.env.local` with your API keys:
 | Variable | Description | Required |
 |---|---|---|
 | `TAVILY_API_KEY` | [Tavily](https://tavily.com/) Search API Key | Yes |
-| `OPENROUTER_API_KEY` | [OpenRouter](https://openrouter.ai/) API Key | Yes (if Ollama not used) |
+| `OPENROUTER_API_KEY` | [OpenRouter](https://openrouter.ai/) API Key | No (optional fallback when Ollama unavailable) |
 | `APP_PIN` | Your chosen 6+ digit access code | Yes |
 | `REDDIT_CLIENT_ID` | Reddit App Client ID | For Reddit |
 | `REDDIT_CLIENT_SECRET` | Reddit App Secret | For Reddit |
@@ -87,10 +86,8 @@ Edit `.env.local` with your API keys:
 # Install Ollama
 curl -fsSL https://ollama.com/install.sh | sh
 
-# Pull recommended models
-ollama pull gemma3
-ollama pull llama3
-ollama pull mistral
+# Pull a model (gemma3, llama3, mistral, etc.)
+ollama pull gemma3:12b
 ```
 
 ### 5. Development
