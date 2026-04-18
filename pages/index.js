@@ -223,31 +223,24 @@ export default function Dashboard() {
   )
 
   const handleSyncAll = async (force = false) => {
-    if (topics.length === 0) return
-
-    // Check if any are fresh
-    if (!force) {
-      const freshCount = topics.filter((t) => {
-        const entry = getCacheEntry(t.id)
-        return entry && entry.cachedAt && Date.now() - entry.cachedAt < CACHE_TTL_MS
-      }).length
-
-      if (freshCount > 0) {
-        setConfirmModal({
-          isOpen: true,
-          message: `${freshCount} of your topics are still fresh. Sync everything anyway?`,
-          onConfirm: () => {
-            closeConfirm()
-            handleSyncAll(true)
-          },
-        })
-        return
-      }
-    }
+    if (syncingAll) return
 
     setSyncingAll(true)
-    await Promise.all(topics.map((t) => fetchTopic(t, true)))
+    setSyncingAllPkgs(true)
+    setSyncingAllFeeds(true)
+    setSyncingAllSubs(true)
+
+    await Promise.all([
+      ...(topics.length > 0 ? topics.map((t) => fetchTopic(t, true)) : []),
+      ...(packages.length > 0 ? packages.map((p) => fetchPackage(p, true)) : []),
+      ...(feeds.length > 0 ? feeds.map((f) => fetchFeed(f, true)) : []),
+      ...(subreddits.length > 0 ? subreddits.map((s) => fetchSubreddit(s, true)) : []),
+    ])
+
     setSyncingAll(false)
+    setSyncingAllPkgs(false)
+    setSyncingAllFeeds(false)
+    setSyncingAllSubs(false)
   }
 
   const handleAddTopic = async (topic, query, topicType) => {
@@ -314,25 +307,7 @@ export default function Dashboard() {
 
   const handleSyncAllPkgs = async (force = false) => {
     if (packages.length === 0) return
-
-    if (!force) {
-      const freshCount = packages.filter((p) => {
-        const entry = getPkgCacheEntry(p.id)
-        return entry && entry.cachedAt && Date.now() - entry.cachedAt < CACHE_TTL_MS
-      }).length
-
-      if (freshCount > 0) {
-        setConfirmModal({
-          isOpen: true,
-          message: `${freshCount} of your packages are still fresh. Sync everything anyway?`,
-          onConfirm: () => {
-            closeConfirm()
-            handleSyncAllPkgs(true)
-          },
-        })
-        return
-      }
-    }
+    if (syncingAllPkgs) return
 
     setSyncingAllPkgs(true)
     await Promise.all(packages.map((p) => fetchPackage(p, true)))
@@ -393,25 +368,7 @@ export default function Dashboard() {
 
   const handleSyncAllFeeds = async (force = false) => {
     if (feeds.length === 0) return
-
-    if (!force) {
-      const freshCount = feeds.filter((f) => {
-        const entry = getFeedCacheEntry(f.id)
-        return entry && entry.cachedAt && Date.now() - entry.cachedAt < CACHE_TTL_MS
-      }).length
-
-      if (freshCount > 0) {
-        setConfirmModal({
-          isOpen: true,
-          message: `${freshCount} of your feeds are still fresh. Sync everything anyway?`,
-          onConfirm: () => {
-            closeConfirm()
-            handleSyncAllFeeds(true)
-          },
-        })
-        return
-      }
-    }
+    if (syncingAllFeeds) return
 
     setSyncingAllFeeds(true)
     await Promise.all(feeds.map((f) => fetchFeed(f, true)))
@@ -480,22 +437,7 @@ export default function Dashboard() {
 
   const handleSyncAllSubs = async (force = false) => {
     if (subreddits.length === 0) return
-
-    if (!force) {
-      const freshCount = subreddits.filter((s) => isSubCacheFresh(s.id)).length
-
-      if (freshCount > 0) {
-        setConfirmModal({
-          isOpen: true,
-          message: `${freshCount} of your subreddits are still fresh. Sync everything anyway?`,
-          onConfirm: () => {
-            closeConfirm()
-            handleSyncAllSubs(true)
-          },
-        })
-        return
-      }
-    }
+    if (syncingAllSubs) return
 
     setSyncingAllSubs(true)
     await Promise.all(subreddits.map((s) => fetchSubreddit(s, true)))
@@ -611,15 +553,13 @@ export default function Dashboard() {
                 +
               </button>
 
-              {hasTopics && (
-                <button
-                  onClick={() => handleSyncAll()}
-                  disabled={syncingAll || totalLoading > 0}
-                  className="hidden sm:inline-block text-xs text-dim hover:text-accent border border-muted hover:border-accent px-2 sm:px-3 py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  {syncingAll ? 'syncing...' : 'sync'}
-                </button>
-              )}
+              <button
+                onClick={() => handleSyncAll()}
+                disabled={syncingAll || syncingAllPkgs || syncingAllFeeds || syncingAllSubs || (totalLoading + totalPkgLoading + totalFeedLoading + totalSubLoading) > 0}
+                className="hidden sm:inline-block text-xs text-dim hover:text-accent border border-muted hover:border-accent px-2 sm:px-3 py-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {(syncingAll || syncingAllPkgs || syncingAllFeeds || syncingAllSubs) ? 'syncing...' : 'sync all'}
+              </button>
 
               <button
                 onClick={() => { setShowAdd(!showAdd); setShowSettings(false); setShowAddPackage(false); setShowAddFeed(false); setShowAddSubreddit(false) }}
