@@ -630,7 +630,7 @@ export default function Dashboard() {
                   fontFamily: 'var(--font-display)',
                 }}
               >
-                {showAdd ? '−' : '+'}
+                {showAdd ? '−' : '+'} TOPIC
               </button>
 
               <button
